@@ -1,0 +1,216 @@
+import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useNavigate } from 'react-router-dom'
+import { Input }     from '@/components/ui/Input'
+import { Select }    from '@/components/ui/Select'
+import { Textarea }  from '@/components/ui/Textarea'
+import { Button }    from '@/components/ui/Button'
+import { Card }      from '@/components/ui/Card'
+import { Badge }     from '@/components/ui/Badge'
+import { useExerciseList } from '@/hooks/exercise/useExerciseList'
+import { ROUTES, DIFFICULTY_LABELS, DIFFICULTY } from '@/lib/constants'
+import type { Exercise, CreateExercisePayload } from '@/types/exercise.types'
+
+/* Schema mirrors backend exerciseSchema exactly */
+const schema = z.object({
+  name:             z.string().trim().min(1, 'Vui lòng nhập tên bài tập').max(100),
+  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập'),
+  category_id:      z.coerce.number({ invalid_type_error: 'Vui lòng chọn nhóm bài tập' })
+                      .int().positive('Vui lòng chọn nhóm bài tập'),
+  muscle_group_ids: z.array(z.number()).min(1, 'Vui lòng chọn ít nhất một nhóm cơ'),
+  difficulty_level: z.enum(['cơ bản', 'trung bình', 'nâng cao'] as const),
+  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ'),
+  met_value:        z.coerce.number().positive('Giá trị MET phải lớn hơn 0').optional(),
+  video_url:        z.string().url('URL không hợp lệ').optional().or(z.literal('')),
+  thumbnail_url:    z.string().url('URL không hợp lệ').optional().or(z.literal('')),
+})
+
+export type ExerciseFormValues = z.infer<typeof schema>
+
+const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label]) => ({ value, label }))
+
+interface ExerciseFormProps {
+  defaultValues?: Partial<ExerciseFormValues>
+  onSubmit:       (values: CreateExercisePayload) => void
+  isLoading:      boolean
+  submitLabel?:   string
+}
+
+export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Lưu bài tập' }: ExerciseFormProps) {
+  const navigate = useNavigate()
+  const { data: exercises } = useExerciseList()
+
+  /* Derive unique categories & muscle groups from exercise list */
+  const categories = useMemo(() => {
+    const map = new Map<number, string>()
+    exercises?.forEach((e) => { if (e.category) map.set(e.category.id, e.category.name) })
+    return [...map.entries()].map(([value, label]) => ({ value, label }))
+  }, [exercises])
+
+  const muscleGroups = useMemo(() => {
+    const map = new Map<number, string>()
+    exercises?.forEach((e) =>
+      e.muscleGroups?.forEach((mg) => map.set(mg.id, mg.name))
+    )
+    return [...map.entries()].map(([id, name]) => ({ id, name }))
+  }, [exercises])
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors, isDirty },
+  } = useForm<ExerciseFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { difficulty_level: DIFFICULTY.CO_BAN, muscle_group_ids: [], ...defaultValues },
+  })
+
+  const selectedMuscles = watch('muscle_group_ids') ?? []
+
+  function toggleMuscle(id: number) {
+    const curr = selectedMuscles
+    setValue(
+      'muscle_group_ids',
+      curr.includes(id) ? curr.filter((m) => m !== id) : [...curr, id],
+    )
+  }
+
+  function handleCancel() {
+    if (isDirty && !confirm('Bỏ các thay đổi chưa lưu?')) return
+    navigate(ROUTES.EXERCISES)
+  }
+
+  return (
+    <Card>
+      <form onSubmit={handleSubmit((v) => onSubmit(v as unknown as CreateExercisePayload))} className="space-y-5">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Input
+            label="Tên bài tập"
+            placeholder="VD: Barbell Bench Press"
+            error={errors.name?.message}
+            required
+            {...register('name')}
+          />
+          <Select
+            label="Mức độ"
+            options={difficultyOptions}
+            error={errors.difficulty_level?.message}
+            required
+            {...register('difficulty_level')}
+          />
+        </div>
+
+        <Textarea
+          label="Mô tả"
+          placeholder="Hướng dẫn kỹ thuật, lưu ý..."
+          error={errors.description?.message}
+          required
+          {...register('description')}
+        />
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Select
+            label="Nhóm bài tập"
+            options={categories}
+            placeholder="Chọn nhóm"
+            error={errors.category_id?.message}
+            required
+            {...register('category_id')}
+          />
+          <Input
+            label="Thiết bị"
+            placeholder="Barbell, Dumbbell, Cable..."
+            error={errors.equipment?.message}
+            required
+            {...register('equipment')}
+          />
+        </div>
+
+        <Input
+          label="Chỉ số MET"
+          type="number"
+          step="0.1"
+          placeholder="3.0"
+          helperText="Metabolic Equivalent — dùng để tính calo"
+          error={errors.met_value?.message}
+          {...register('met_value')}
+        />
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Input
+            label="Video URL"
+            type="url"
+            placeholder="https://youtube.com/..."
+            error={errors.video_url?.message}
+            {...register('video_url')}
+          />
+          <Input
+            label="Thumbnail URL"
+            type="url"
+            placeholder="https://..."
+            error={errors.thumbnail_url?.message}
+            {...register('thumbnail_url')}
+          />
+        </div>
+
+        {/* Muscle group multi-select */}
+        <div>
+          <p className="text-sm font-medium text-foreground/80 mb-2">
+            Nhóm cơ <span className="text-danger">*</span>
+          </p>
+          {muscleGroups.length === 0 ? (
+            <p className="text-xs text-muted italic">
+              Chưa có dữ liệu nhóm cơ — hãy thêm bài tập khác trước để hệ thống nhận diện.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {muscleGroups.map((mg) => (
+                <button
+                  key={mg.id}
+                  type="button"
+                  onClick={() => toggleMuscle(mg.id)}
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-md"
+                >
+                  <Badge
+                    variant={selectedMuscles.includes(mg.id) ? 'accent' : 'neutral'}
+                    className="cursor-pointer transition-all hover:opacity-80"
+                  >
+                    {mg.name}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          )}
+          {errors.muscle_group_ids && (
+            <p className="text-xs text-danger mt-1" role="alert">
+              {errors.muscle_group_ids.message}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={handleCancel} disabled={isLoading}>Hủy</Button>
+          <Button type="submit" loading={isLoading} className="flex-1">{submitLabel}</Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
+export function exerciseToFormValues(exercise: Exercise): ExerciseFormValues {
+  return {
+    name:             exercise.name,
+    description:      exercise.description ?? '',
+    category_id:      exercise.category_id ?? (0 as unknown as number),
+    difficulty_level: exercise.difficulty_level,
+    equipment:        exercise.equipment ?? '',
+    met_value:        exercise.met_value,
+    video_url:        exercise.video_url ?? '',
+    thumbnail_url:    exercise.thumbnail_url ?? '',
+    muscle_group_ids: exercise.muscleGroups?.map((mg) => mg.id) ?? [],
+  }
+}

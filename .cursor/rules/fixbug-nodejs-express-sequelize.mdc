@@ -1,0 +1,26 @@
+# 🛠️ Fix Bug Rules – Node.js + Express + MySQL + Sequelize
+
+## 🎯 Purpose
+Standardize debugging and bug fixing process for backend using:
+- Node.js
+- Express
+- MySQL
+- Sequelize ORM
+
+---
+
+## 🔍 1. Identify Bug Layer First
+Always determine where the bug originates:
+
+- Controller (request/response issues)
+- Service (business logic)
+- Model (Sequelize query)
+- Database (schema/data)
+- Middleware (auth/validation)
+
+### Required Debug Logs
+```js
+console.log("BODY:", req.body);
+console.log("PARAMS:", req.params);
+console.log("QUERY:", req.query);
+console.log("RESULT:", result);
