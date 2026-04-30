@@ -54,7 +54,15 @@ apiClient.interceptors.response.use(
     const status = error.response?.status
 
     /* ── 401: attempt token refresh once ───────────────── */
-    if (status === 401 && !original._retry) {
+    /* Skip refresh for auth routes — let their 401 fall through
+       to the normalization block so the backend message is shown. */
+    const isAuthRoute = original.url
+      ? ['/auth/login', '/auth/register', '/auth/logout'].some((p) =>
+          original.url!.includes(p),
+        )
+      : false
+
+    if (status === 401 && !original._retry && !isAuthRoute) {
       original._retry = true
 
       if (isRefreshing) {
@@ -93,7 +101,12 @@ apiClient.interceptors.response.use(
         isRefreshing = false
         triggerLogout()
         imperativeNavigate(ROUTES.LOGIN)
-        return Promise.reject(refreshError)
+        /* Reject with a clear message, not the raw Axios string */
+        return Promise.reject(
+          Object.assign(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'), {
+            status: 401,
+          }),
+        )
       }
     }
 
