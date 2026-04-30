@@ -7,11 +7,16 @@ import {
 } from "../errors/AppError.js";
 import TokenService from "./tokenService.js";
 
+const VALID_GENDERS = ["nam", "nữ", "khác"];
+
+function parseGender(value) {
+  const normalized = value?.toLowerCase();
+  return VALID_GENDERS.includes(normalized) ? normalized : null;
+}
+
 class AuthService {
   static async register(payload) {
-    console.log(db.User);
     const existingUser = await db.User.findOne({ where: { email: payload.email } });
-    console.log("Check existing user: ", existingUser);
     if (existingUser) {
       throw new ConflictError("Email đã tồn tại");
     }
@@ -21,23 +26,37 @@ class AuthService {
       throw new NotFoundError("Vai trò mặc định không được chọn");
     }
 
+    const gender = parseGender(payload.gender);
+    if (!gender) {
+      throw new ConflictError("Giới tính không hợp lệ. Chỉ chấp nhận: nam, nữ, khác");
+    }
+
     const password_hash = await bcrypt.hash(payload.password, 10);
 
-    await db.User.create({
-      email: payload.email,
-      password_hash,
-      name: payload.name,
-      role_id: defaultRole.id,
-      date_of_birth: payload.birthday,
-      height: payload.height,
-      weight: payload.weight,
-      gender: payload.gender,
-    });
+    try {
+      await db.User.create({
+        email: payload.email,
+        password_hash,
+        name: payload.name,
+        role_id: defaultRole.id,
+        date_of_birth: payload.birthday,
+        height: payload.height,
+        weight: payload.weight,
+        gender,
+      });
+    
+      console.log("User created successfully");
+    } catch (err) {
+      console.error("Create user error:", err);
+      throw new Error("Create user error");
+    }
   }
 
   static async login({ email, password }) {
+    console.log("User: ", email);
     const user = await db.User.findOne({ where: { email } });
     if (!user) {
+      console.log("User not found");
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
