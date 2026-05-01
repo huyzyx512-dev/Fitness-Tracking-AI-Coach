@@ -6,6 +6,29 @@ import {
 } from "../errors/AppError.js";
 import { WORKOUT_STATUS } from "../utils/workoutStatus.js";
 
+const DIFFICULTY_VI_TO_EN = {
+  "cơ bản": "beginner",
+  "trung bình": "intermediate",
+  "nâng cao": "advanced",
+};
+
+const DIFFICULTY_EN_TO_VI = {
+  beginner: "cơ bản",
+  intermediate: "trung bình",
+  advanced: "nâng cao",
+};
+
+export const mapDifficultyForDb = (viValue) =>
+  DIFFICULTY_VI_TO_EN[viValue] || "beginner";
+
+export const mapDifficultyForApi = (enValue) =>
+  DIFFICULTY_EN_TO_VI[enValue] || "cơ bản";
+
+const normalizeOptionalUrl = (value) => {
+  if (value === "" || value === undefined) return null;
+  return value;
+};
+
 const exerciseInclude = [
   {
     model: db.Category,
@@ -95,6 +118,10 @@ export const createNewExercise = async (payload, userId) => {
   const transaction = await db.sequelize.transaction();
   try {
     const { muscle_group_ids, ...exerciseData } = payload;
+    /* Map VN → enum DB + normalize optional URLs */
+    exerciseData.difficulty_level = mapDifficultyForDb(exerciseData.difficulty_level);
+    exerciseData.video_url = normalizeOptionalUrl(exerciseData.video_url);
+    exerciseData.thumbnail_url = normalizeOptionalUrl(exerciseData.thumbnail_url);
 
     const exercise = await db.Exercise.create(
       {
@@ -128,6 +155,16 @@ export const updateInfoExercise = async (id, data, user) => {
   const transaction = await db.sequelize.transaction();
   try {
     const { muscle_group_ids, ...exerciseData } = data;
+    /* Map VN → enum DB when updating difficulty */
+    if (exerciseData.difficulty_level !== undefined) {
+      exerciseData.difficulty_level = mapDifficultyForDb(exerciseData.difficulty_level);
+    }
+    if (exerciseData.video_url !== undefined) {
+      exerciseData.video_url = normalizeOptionalUrl(exerciseData.video_url);
+    }
+    if (exerciseData.thumbnail_url !== undefined) {
+      exerciseData.thumbnail_url = normalizeOptionalUrl(exerciseData.thumbnail_url);
+    }
 
     if (Object.keys(exerciseData).length > 0) {
       await exercise.update(exerciseData, { transaction });
