@@ -14,7 +14,7 @@ function PageHeader({ title, description, action, className }: PageHeaderProps) 
       <div>
         <h1
           className="text-3xl text-foreground"
-          style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.04em' }}
+          style={{ fontFamily: 'var(--font-display)', letterSpacing: '0em' }}
         >
           {title}
         </h1>
