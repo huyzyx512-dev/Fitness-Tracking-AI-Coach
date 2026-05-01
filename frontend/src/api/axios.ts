@@ -100,7 +100,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null)
         isRefreshing = false
         triggerLogout()
-        imperativeNavigate(ROUTES.LOGIN)
+        imperativeNavigate(ROUTES.LOGIN, { replace: true })
         /* Reject with a clear message, not the raw Axios string */
         return Promise.reject(
           Object.assign(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'), {
@@ -110,10 +110,10 @@ apiClient.interceptors.response.use(
       }
     }
 
-    /* ── 403: redirect to forbidden page ───────────────── */
-    if (status === 403) {
-      imperativeNavigate(ROUTES.FORBIDDEN)
-    }
+    /* ── 403: DO NOT navigate globally ───────────────────
+       Background refetches / in-flight requests from other pages can return 403
+       and would otherwise force the UI back to /403 repeatedly.
+       Let screens decide how to present 403 (toast / ErrorState / RoleGuard). */
 
     /* ── Normalise error shape ──────────────────────────── */
     const serverMessage =

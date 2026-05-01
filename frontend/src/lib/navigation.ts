@@ -4,7 +4,12 @@
  * Wire up in RouterProvider via useNavigate() effect.
  */
 
-type NavigateFn = (path: string) => void
+type NavigateOptions = {
+  replace?: boolean
+  state?: unknown
+}
+
+type NavigateFn = (path: string, options?: NavigateOptions) => void
 
 let _navigate: NavigateFn | null = null
 
@@ -12,10 +17,14 @@ export function registerNavigate(fn: NavigateFn): void {
   _navigate = fn
 }
 
-export function imperativeNavigate(path: string): void {
+export function imperativeNavigate(path: string, options?: NavigateOptions): void {
   if (_navigate) {
-    _navigate(path)
+    _navigate(path, options)
   } else {
-    window.location.href = path
+    if (options?.replace) {
+      window.location.replace(path)
+    } else {
+      window.location.href = path
+    }
   }
 }
