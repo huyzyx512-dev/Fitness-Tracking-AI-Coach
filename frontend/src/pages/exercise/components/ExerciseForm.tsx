@@ -13,15 +13,18 @@ import { useExerciseList } from '@/hooks/exercise/useExerciseList'
 import { ROUTES, DIFFICULTY_LABELS, DIFFICULTY } from '@/lib/constants'
 import type { Exercise, CreateExercisePayload } from '@/types/exercise.types'
 
-/* Schema mirrors backend exerciseSchema exactly */
+/* Create Exercise:
+   Only fields marked with * are required.
+   If URL fields are provided, they must be valid URLs. */
 const schema = z.object({
   name:             z.string().trim().min(1, 'Vui lòng nhập tên bài tập').max(100),
-  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập'),
-  category_id:      z.coerce.number({ invalid_type_error: 'Vui lòng chọn nhóm bài tập' })
-                      .int().positive('Vui lòng chọn nhóm bài tập'),
-  muscle_group_ids: z.array(z.number()).min(1, 'Vui lòng chọn ít nhất một nhóm cơ'),
+  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập').optional().or(z.literal('')),
+  category_id:      z
+    .union([z.literal('').transform(() => undefined), z.coerce.number().int().positive()])
+    .optional(),
+  muscle_group_ids: z.array(z.number()).optional(),
   difficulty_level: z.enum(['cơ bản', 'trung bình', 'nâng cao'] as const),
-  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ'),
+  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ').optional().or(z.literal('')),
   met_value:        z.coerce.number().positive('Giá trị MET phải lớn hơn 0').optional(),
   video_url:        z.string().url('URL không hợp lệ').optional().or(z.literal('')),
   thumbnail_url:    z.string().url('URL không hợp lệ').optional().or(z.literal('')),
@@ -108,7 +111,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
           label="Mô tả"
           placeholder="Hướng dẫn kỹ thuật, lưu ý..."
           error={errors.description?.message}
-          required
           {...register('description')}
         />
 
@@ -118,14 +120,12 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
             options={categories}
             placeholder="Chọn nhóm"
             error={errors.category_id?.message}
-            required
             {...register('category_id')}
           />
           <Input
             label="Thiết bị"
             placeholder="Barbell, Dumbbell, Cable..."
             error={errors.equipment?.message}
-            required
             {...register('equipment')}
           />
         </div>
@@ -159,9 +159,7 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
 
         {/* Muscle group multi-select */}
         <div>
-          <p className="text-sm font-medium text-foreground/80 mb-2">
-            Nhóm cơ <span className="text-danger">*</span>
-          </p>
+          <p className="text-sm font-medium text-foreground/80 mb-2">Nhóm cơ</p>
           {muscleGroups.length === 0 ? (
             <p className="text-xs text-muted italic">
               Chưa có dữ liệu nhóm cơ — hãy thêm bài tập khác trước để hệ thống nhận diện.
@@ -185,11 +183,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
               ))}
             </div>
           )}
-          {errors.muscle_group_ids && (
-            <p className="text-xs text-danger mt-1" role="alert">
-              {errors.muscle_group_ids.message}
-            </p>
-          )}
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -205,7 +198,7 @@ export function exerciseToFormValues(exercise: Exercise): ExerciseFormValues {
   return {
     name:             exercise.name,
     description:      exercise.description ?? '',
-    category_id:      exercise.category_id ?? (0 as unknown as number),
+    category_id:      exercise.category_id ?? (undefined as unknown as number),
     difficulty_level: exercise.difficulty_level,
     equipment:        exercise.equipment ?? '',
     met_value:        exercise.met_value,

@@ -46,11 +46,11 @@ export interface Exercise {
 
 export interface CreateExercisePayload {
   name: string
-  description: string         // required by backend
-  category_id: number         // required by backend
-  muscle_group_ids: number[]  // required by backend, min 1
+  description?: string
+  category_id?: number
+  muscle_group_ids?: number[]
   difficulty_level: DifficultyLevel
-  equipment: string           // required by backend
+  equipment?: string
   met_value?: number
   video_url?: string | null
   thumbnail_url?: string | null
