@@ -24,6 +24,13 @@ app.use(
   }),
 );
 
+app.use(
+  "/uploads",
+  express.static(appConfig.paths.uploadsRoot, {
+    maxAge: appConfig.isProduction ? "1d" : 0,
+  }),
+);
+
 app.use("/api/auth", authRoute);
 app.use("/api/user", userRoute);
 app.use("/api/workouts", authenticationToken, workoutRoute);
