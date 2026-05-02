@@ -42,7 +42,8 @@ export const authenticationToken = async (req, res, next) => {
           errorName: error.name,
         });
       }
-      return next(new ForbiddenError("Access token không hợp lệ hoặc đã hết hạn"));
+      // FIX: Map JWT errors to 401 để đồng bộ với frontend refresh interceptor
+      return next(new UnauthorizedError("Access token không hợp lệ hoặc đã hết hạn"));
     }
 
     return next(error);
