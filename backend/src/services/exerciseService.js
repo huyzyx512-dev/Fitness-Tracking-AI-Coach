@@ -1,4 +1,7 @@
+import fs from "fs";
+import path from "path";
 import db from "../models/index.js";
+import { appConfig } from "../config/env.js";
 import {
   ForbiddenError,
   NotFoundError,
@@ -93,7 +96,7 @@ const syncExerciseMuscles = async (exerciseId, muscleGroupIds, transaction) => {
   );
 };
 
-const getExerciseById = async (id) => {
+export const getExerciseById = async (id) => {
   const exercise = await db.Exercise.findByPk(id, {
     include: exerciseInclude,
   });
@@ -103,6 +106,41 @@ const getExerciseById = async (id) => {
   }
 
   return exercise;
+};
+
+/** Best-effort removal of a previously uploaded file under uploads/exercises/. Ignores external URLs and failures. */
+export function tryDeleteOldExerciseUploadedVideo(oldVideoUrl) {
+  if (!oldVideoUrl || typeof oldVideoUrl !== "string") return;
+  try {
+    const u = new URL(oldVideoUrl);
+    const prefix = "/uploads/exercises/";
+    if (!u.pathname.startsWith(prefix)) return;
+    const basename = path.basename(u.pathname);
+    if (!basename || basename === "." || basename === "..") return;
+    const candidate = path.resolve(path.join(appConfig.paths.exerciseVideosDir, basename));
+    const dirResolved = path.resolve(appConfig.paths.exerciseVideosDir);
+    const rel = path.relative(dirResolved, candidate);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) return;
+    if (fs.existsSync(candidate)) {
+      fs.unlinkSync(candidate);
+    }
+  } catch {
+    // invalid URL or fs error — skip optional cleanup
+  }
+}
+
+/** Set video_url after upload; deletes prior file only if it was stored under /uploads/exercises/. */
+export const updateExerciseVideoAfterUpload = async (id, user, publicVideoUrl) => {
+  const exercise = await db.Exercise.findByPk(id);
+  if (!exercise) {
+    throw new NotFoundError("Không tìm thấy bài tập");
+  }
+
+  assertExercisePermission(exercise, user);
+  const previousUrl = exercise.video_url;
+  await exercise.update({ video_url: publicVideoUrl });
+  tryDeleteOldExerciseUploadedVideo(previousUrl);
+  return getExerciseById(id);
 };
 
 export const getAllExercises = async () => {

@@ -1,6 +1,12 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const backendRoot = path.join(__dirname, "../..");
 
 const parseOrigins = (value) => {
   if (!value) {
@@ -16,6 +22,19 @@ const parseOrigins = (value) => {
 const nodeEnv = process.env.NODE_ENV || "development";
 const isProduction = nodeEnv === "production";
 
+/** Optional full origin for absolute URLs (e.g. https://api.example.com). If unset, controllers may derive from request. */
+const publicBaseUrlRaw = process.env.PUBLIC_BASE_URL?.trim();
+
+/** Max exercise video upload size (bytes). Default 100 MiB; override via VIDEO_UPLOAD_MAX_MB (e.g. 120). */
+const videoUploadMaxMb = Number(process.env.VIDEO_UPLOAD_MAX_MB || "100");
+const exerciseVideoMaxBytes = Math.min(
+  150 * 1024 * 1024,
+  Math.max(10 * 1024 * 1024, Math.round(videoUploadMaxMb * 1024 * 1024)),
+);
+
+const uploadsRoot = path.join(backendRoot, "uploads");
+const exerciseVideosDir = path.join(uploadsRoot, "exercises");
+
 export const appConfig = {
   nodeEnv,
   isProduction,
@@ -25,6 +44,13 @@ export const appConfig = {
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || "dev-access-token-secret",
   refreshTokenTtlMs: 14 * 24 * 60 * 60 * 1000,
+  /** Base URL for building stored video_url (no trailing slash). Optional; use resolvePublicBaseUrl(req) when missing. */
+  publicBaseUrl: publicBaseUrlRaw ? publicBaseUrlRaw.replace(/\/$/, "") : undefined,
+  exerciseVideoMaxBytes,
+  paths: {
+    uploadsRoot,
+    exerciseVideosDir,
+  },
 };
 
 export const buildRefreshTokenCookieOptions = (maxAge = appConfig.refreshTokenTtlMs) => ({
