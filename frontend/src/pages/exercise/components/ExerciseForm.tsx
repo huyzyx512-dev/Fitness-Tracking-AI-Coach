@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -46,13 +46,14 @@ const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label])
 
 interface ExerciseFormProps {
   defaultValues?: Partial<ExerciseFormValues>
-  onSubmit:       (values: CreateExercisePayload) => void
-  isLoading:      boolean
-  submitLabel?:   string
+  onSubmit: (values: CreateExercisePayload, videoFile: File | null) => void | Promise<void>
+  isLoading: boolean
+  submitLabel?: string
 }
 
 export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Lưu bài tập' }: ExerciseFormProps) {
   const navigate = useNavigate()
+  const [videoFile, setVideoFile] = useState<File | null>(null)
   const { data: exercises } = useExerciseList()
 
   /* Derive unique categories & muscle groups from exercise list */
@@ -99,7 +100,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
   return (
     <Card>
       <form
-        onSubmit={handleSubmit((v) => onSubmit(schema.parse(v) as CreateExercisePayload))}
+        onSubmit={handleSubmit(async (v) => {
+          const payload = schema.parse(v) as CreateExercisePayload
+          await onSubmit(payload, videoFile)
+        })}
         className="space-y-5"
       >
         <div className="grid sm:grid-cols-2 gap-4">
@@ -152,20 +156,39 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
           {...register('met_value')}
         />
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-4">
+          <p className="text-sm font-medium text-foreground/90">Video</p>
+          <p className="text-xs text-muted leading-relaxed">
+            Có thể dán link ngoài (YouTube, v.v.) hoặc chọn file video (MP4, WebM…) để tải lên sau khi lưu bài tập. File
+            sẽ được gửi lên máy chủ khi bạn bấm &quot;{submitLabel}&quot;.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input
+              label="Video URL"
+              type="url"
+              placeholder="https://youtube.com/..."
+              error={errors.video_url?.message}
+              {...register('video_url')}
+            />
+            <Input
+              label="Thumbnail URL"
+              type="url"
+              placeholder="https://..."
+              error={errors.thumbnail_url?.message}
+              {...register('thumbnail_url')}
+            />
+          </div>
           <Input
-            label="Video URL"
-            type="url"
-            placeholder="https://youtube.com/..."
-            error={errors.video_url?.message}
-            {...register('video_url')}
-          />
-          <Input
-            label="Thumbnail URL"
-            type="url"
-            placeholder="https://..."
-            error={errors.thumbnail_url?.message}
-            {...register('thumbnail_url')}
+            label="File video (tuỳ chọn)"
+            type="file"
+            accept="video/*"
+            className="min-h-11 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/30"
+            helperText={
+              videoFile
+                ? `Đã chọn: ${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(2)} MB)`
+                : undefined
+            }
+            onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
           />
         </div>
 
