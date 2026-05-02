@@ -5,9 +5,9 @@ import { appConfig } from "../config/env.js";
 import { authLog } from "../utils/authDebugLog.js";
 
 class TokenService {
-  static createAccessToken(user) {
+  static createAccessToken(userId, tokenVersion) {
     return jwt.sign(
-      { id: user.id, tokenVersion: user.tokenVersion },
+      { id: userId, tokenVersion: tokenVersion },
       appConfig.accessTokenSecret,
       { expiresIn: "15m" },
     );
@@ -50,6 +50,30 @@ class TokenService {
     await db.RefreshToken.destroy({
       where: { userId },
     });
+  }
+
+  static async findRefreshToken(token) {
+    
+    if (!token) {
+      return null;
+    }
+
+    const refreshToken = await db.RefreshToken.findOne({ where: { token } });
+    if (!refreshToken) return null;
+
+    if (refreshToken.expiryDate < new Date()) {
+      this.revokeRefreshToken(token);
+      return null;
+    }
+
+    const user = await db.User.findOne({ where: { id: refreshToken.userId } });
+    if (!user) return null;
+
+    if (refreshToken.tokenVersion !== user.tokenVersion) {
+      return null;
+    }
+
+    return { userId: user.id, tokenVersion: user.tokenVersion };
   }
 }
 

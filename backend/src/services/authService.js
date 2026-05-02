@@ -89,39 +89,15 @@ class AuthService {
   }
 
   static async refreshAccessToken(token) {
-    if (!token) {
-      authLog("refresh_missing_cookie_or_body", {});
-      throw new UnauthorizedError("Vui lòng cung cấp refresh token");
-    }
-
-    const session = await db.RefreshToken.findOne({ where: { token } });
-    if (!session) {
-      authLog("refresh_invalid_session", {});
+    const { userId, tokenVersion } = await TokenService.findRefreshToken(token);
+    if (!userId) {
       throw new UnauthorizedError("Refresh token không hợp lệ");
     }
 
-    if (session.expiryDate.getTime() < Date.now()) {
-      authLog("refresh_expired", { userId: session.userId });
-      await TokenService.revokeRefreshToken(token);
-      throw new UnauthorizedError("Vui lòng đăng nhập lại");
-    }
-
-    const user = await db.User.findByPk(session.userId);
-    if (!user) {
-      authLog("refresh_user_missing", { userId: session.userId });
-      throw new UnauthorizedError("Không tìm thấy người dùng");
-    }
-
-    if (session.tokenVersion !== user.tokenVersion) {
-      authLog("refresh_version_mismatch", { userId: user.id });
-      await TokenService.revokeRefreshToken(token);
-      throw new UnauthorizedError("Refresh token đã bị thu hồi");
-    }
-
-    const accessToken = TokenService.createAccessToken(user);
-    authLog("refresh_ok", { userId: user.id });
+    const accessToken = TokenService.createAccessToken(userId, tokenVersion);
+    authLog("refresh_ok", { userId});
     authLog("access_issued", {
-      userId: user.id,
+      userId,
       ...(tokenTail(accessToken) ? { accessTail: tokenTail(accessToken) } : {}),
     });
 

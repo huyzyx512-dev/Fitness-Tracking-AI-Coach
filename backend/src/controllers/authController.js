@@ -31,18 +31,24 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
+// FIX: Allow logout via refresh cookie even if access token is expired/missing
 export const logout = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken;
 
-  await UserService.incrementTokenVersion(req.user.id);
-  await TokenService.revokeAllUserSessions(req.user.id);
+  try {
+    const {userId} = await TokenService.findRefreshToken(token);
 
-  if (token) {
-    await TokenService.revokeRefreshToken(token);
+    if (userId) {
+      await UserService.incrementTokenVersion(userId);
+      await TokenService.revokeAllUserSessions(userId);
+    }
+
+    res.clearCookie("refreshToken", buildRefreshTokenCookieOptions(0));
+    return res.sendStatus(204);
+  } catch (error) {
+    authLog("logout_error", { error: error.message });
+    return res.sendStatus(401);
   }
-
-  res.clearCookie("refreshToken", buildRefreshTokenCookieOptions(0));
-  return res.sendStatus(204);
 });
 
 export const refreshToken = asyncHandler(async (req, res) => {
