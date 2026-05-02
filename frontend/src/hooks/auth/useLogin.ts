@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { ROUTES } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/utils'
 import type { LoginPayload } from '@/types/auth.types'
+import { setAccessToken } from '@/api/tokenService'
 
 export function useLogin() {
   const navigate = useNavigate()
@@ -15,6 +16,14 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (payload: LoginPayload) => {
       const { accessToken } = await authApi.login(payload)
+
+      if (!accessToken) {
+        throw new Error('Failed to login')
+      }
+
+      // FIX: Set token ngay sau login để getMe() không bị 401/403
+      setAccessToken(accessToken);
+
       // Fetch full user profile with the new token
       const { user } = await userApi.getMe()
       return { accessToken, user }
