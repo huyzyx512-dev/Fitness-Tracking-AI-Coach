@@ -14,23 +14,33 @@ import { ROUTES, DIFFICULTY_LABELS, DIFFICULTY } from '@/lib/constants'
 import type { Exercise, CreateExercisePayload } from '@/types/exercise.types'
 
 /* Create Exercise:
-   Only fields marked with * are required.
-   If URL fields are provided, they must be valid URLs. */
+   - Field có dấu * là bắt buộc
+   - Field không có * có thể bỏ trống
+   - Nếu có nhập URL thì phải hợp lệ */
+const optionalInt = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().int().positive()])
+  .optional()
+
+const optionalPositiveNumber = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().positive('Giá trị MET phải lớn hơn 0')])
+  .optional()
+
+const optionalText = (msg: string) => z.string().trim().min(1, msg).optional().or(z.literal(''))
+
 const schema = z.object({
   name:             z.string().trim().min(1, 'Vui lòng nhập tên bài tập').max(100),
-  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập').optional().or(z.literal('')),
-  category_id:      z
-    .union([z.literal('').transform(() => undefined), z.coerce.number().int().positive()])
-    .optional(),
+  description:      optionalText('Vui lòng nhập mô tả bài tập'),
+  category_id:      optionalInt,
   muscle_group_ids: z.array(z.number()).optional(),
   difficulty_level: z.enum(['cơ bản', 'trung bình', 'nâng cao'] as const),
-  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ').optional().or(z.literal('')),
-  met_value:        z.coerce.number().positive('Giá trị MET phải lớn hơn 0').optional(),
+  equipment:        optionalText('Vui lòng nhập dụng cụ'),
+  met_value:        optionalPositiveNumber,
   video_url:        z.string().url('URL không hợp lệ').optional().or(z.literal('')),
   thumbnail_url:    z.string().url('URL không hợp lệ').optional().or(z.literal('')),
 })
 
-export type ExerciseFormValues = z.infer<typeof schema>
+type ExerciseFormInput = z.input<typeof schema>
+export type ExerciseFormValues = z.output<typeof schema>
 
 const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label]) => ({ value, label }))
 
@@ -63,11 +73,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
   const {
     register,
     handleSubmit,
-    control,
     watch,
     setValue,
     formState: { errors, isDirty },
-  } = useForm<ExerciseFormValues>({
+  } = useForm<ExerciseFormInput>({
     resolver: zodResolver(schema),
     defaultValues: { difficulty_level: DIFFICULTY.CO_BAN, muscle_group_ids: [], ...defaultValues },
   })
@@ -89,7 +98,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
 
   return (
     <Card>
-      <form onSubmit={handleSubmit((v) => onSubmit(v as unknown as CreateExercisePayload))} className="space-y-5">
+      <form
+        onSubmit={handleSubmit((v) => onSubmit(schema.parse(v) as CreateExercisePayload))}
+        className="space-y-5"
+      >
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
             label="Tên bài tập"
