@@ -15,6 +15,7 @@ const WorkoutDetailPage  = lazy(() => import('@/pages/workout/WorkoutDetailPage'
 const CreateWorkoutPage  = lazy(() => import('@/pages/workout/CreateWorkoutPage'))
 const EditWorkoutPage    = lazy(() => import('@/pages/workout/EditWorkoutPage'))
 const ExerciseListPage   = lazy(() => import('@/pages/exercise/ExerciseListPage'))
+const ExerciseDetailPage = lazy(() => import('@/pages/exercise/ExerciseDetailPage'))
 const CreateExercisePage = lazy(() => import('@/pages/exercise/CreateExercisePage'))
 const EditExercisePage   = lazy(() => import('@/pages/exercise/EditExercisePage'))
 const LogsPage           = lazy(() => import('@/pages/logs/LogsPage'))
@@ -102,6 +103,11 @@ export const router = createBrowserRouter([
                 path: 'new',
                 element: withSuspense(<CreateExercisePage />),
                 handle: { breadcrumb: 'Tạo bài tập' },
+              },
+              {
+                path: ':id',
+                element: withSuspense(<ExerciseDetailPage />),
+                handle: { breadcrumb: 'Chi tiết' },
               },
               {
                 path: ':id/edit',

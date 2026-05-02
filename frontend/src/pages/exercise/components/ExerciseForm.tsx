@@ -182,7 +182,7 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
             label="File video (tuỳ chọn)"
             type="file"
             accept="video/*"
-            className="min-h-11 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/30"
+            className="min-h-11 py-0.5 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/30"
             helperText={
               videoFile
                 ? `Đã chọn: ${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(2)} MB)`
