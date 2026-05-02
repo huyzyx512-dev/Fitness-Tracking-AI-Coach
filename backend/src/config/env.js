@@ -19,6 +19,7 @@ const isProduction = nodeEnv === "production";
 export const appConfig = {
   nodeEnv,
   isProduction,
+  authDebugAccess: !isProduction || process.env.AUTH_DEBUG_ACCESS === "1",
   port: Number(process.env.PORT || 5000),
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,

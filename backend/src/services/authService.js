@@ -6,6 +6,7 @@ import {
   UnauthorizedError,
 } from "../errors/AppError.js";
 import TokenService from "./tokenService.js";
+import { authLog, maskEmail, tokenTail } from "../utils/authDebugLog.js";
 
 const VALID_GENDERS = ["nam", "nữ", "khác"];
 
@@ -44,7 +45,7 @@ class AuthService {
         weight: payload.weight,
         gender,
       });
-    
+
       console.log("User created successfully");
     } catch (err) {
       console.error("Create user error:", err);
@@ -53,10 +54,10 @@ class AuthService {
   }
 
   static async login({ email, password }) {
-    console.log("User: ", email);
+    authLog("login_attempt", { email: maskEmail(email) });
+
     const user = await db.User.findOne({ where: { email } });
     if (!user) {
-      console.log("User not found");
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
@@ -65,43 +66,67 @@ class AuthService {
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
+    authLog("login_ok", { userId: user.id });
+
     const accessToken = TokenService.createAccessToken(user);
     const refreshToken = await TokenService.createRefreshSession(user);
+
+    authLog("access_issued", {
+      userId: user.id,
+      ...(tokenTail(accessToken) ? { accessTail: tokenTail(accessToken) } : {}),
+    });
+    authLog("refresh_session_created", {
+      userId: user.id,
+      ...(tokenTail(refreshToken) ? { refreshTail: tokenTail(refreshToken) } : {}),
+    });
 
     return {
       accessToken,
       refreshToken,
       userName: user.name,
+      userId: user.id,
     };
   }
 
   static async refreshAccessToken(token) {
     if (!token) {
+      authLog("refresh_missing_cookie_or_body", {});
       throw new UnauthorizedError("Vui lòng cung cấp refresh token");
     }
 
     const session = await db.RefreshToken.findOne({ where: { token } });
     if (!session) {
+      authLog("refresh_invalid_session", {});
       throw new UnauthorizedError("Refresh token không hợp lệ");
     }
 
     if (session.expiryDate.getTime() < Date.now()) {
+      authLog("refresh_expired", { userId: session.userId });
       await TokenService.revokeRefreshToken(token);
       throw new UnauthorizedError("Vui lòng đăng nhập lại");
     }
 
     const user = await db.User.findByPk(session.userId);
     if (!user) {
+      authLog("refresh_user_missing", { userId: session.userId });
       throw new UnauthorizedError("Không tìm thấy người dùng");
     }
 
     if (session.tokenVersion !== user.tokenVersion) {
+      authLog("refresh_version_mismatch", { userId: user.id });
       await TokenService.revokeRefreshToken(token);
       throw new UnauthorizedError("Refresh token đã bị thu hồi");
     }
 
+    const accessToken = TokenService.createAccessToken(user);
+    authLog("refresh_ok", { userId: user.id });
+    authLog("access_issued", {
+      userId: user.id,
+      ...(tokenTail(accessToken) ? { accessTail: tokenTail(accessToken) } : {}),
+    });
+
     return {
-      accessToken: TokenService.createAccessToken(user),
+      accessToken,
     };
   }
 }

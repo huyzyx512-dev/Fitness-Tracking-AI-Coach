@@ -2,6 +2,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import db from "../models/index.js";
 import { appConfig } from "../config/env.js";
+import { authLog } from "../utils/authDebugLog.js";
 
 class TokenService {
   static createAccessToken(user) {
@@ -18,12 +19,18 @@ class TokenService {
 
   static async createRefreshSession(user) {
     const token = this.generateRefreshToken();
+    const expiryDate = new Date(Date.now() + appConfig.refreshTokenTtlMs);
 
     await db.RefreshToken.create({
       token,
-      expiryDate: new Date(Date.now() + appConfig.refreshTokenTtlMs),
+      expiryDate,
       userId: user.id,
       tokenVersion: user.tokenVersion,
+    });
+
+    authLog("refresh_session_stored", {
+      userId: user.id,
+      expiryIso: expiryDate.toISOString(),
     });
 
     return token;

@@ -5,6 +5,7 @@ import UserService from "../services/userService.js";
 import { buildRefreshTokenCookieOptions } from "../config/env.js";
 import { parseSchema } from "../validators/common.js";
 import { loginSchema, registerSchema } from "../validators/authValidator.js";
+import { authLog } from "../utils/authDebugLog.js";
 
 export const register = asyncHandler(async (req, res) => {
   const payload = parseSchema(registerSchema, req.body);
@@ -15,6 +16,8 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const payload = parseSchema(loginSchema, req.body);
   const result = await AuthService.login(payload);
+
+  authLog("login_response_200", { userId: result.userId });
 
   res.cookie(
     "refreshToken",
@@ -44,6 +47,8 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const refreshToken = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken;
+  authLog("refresh_route_called", { hasRefreshCookie: Boolean(token) });
+
   const result = await AuthService.refreshAccessToken(token);
 
   return res.status(200).json(result);

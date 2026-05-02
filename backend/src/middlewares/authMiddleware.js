@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import db from "../models/index.js";
 import { appConfig } from "../config/env.js";
 import { ForbiddenError, UnauthorizedError } from "../errors/AppError.js";
+import { authLog } from "../utils/authDebugLog.js";
 
 export const authenticationToken = async (req, res, next) => {
   try {
@@ -36,6 +37,11 @@ export const authenticationToken = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+      if (appConfig.authDebugAccess) {
+        authLog("access_jwt_verify_failed", {
+          errorName: error.name,
+        });
+      }
       return next(new ForbiddenError("Access token không hợp lệ hoặc đã hết hạn"));
     }
 
