@@ -32,6 +32,7 @@ export default function ExerciseListPage() {
   const [search,   setSearch]   = useState('')
   const [catFilter,setCatFilter]= useState('')
   const [diffFilter,setDiffFilter]=useState('')
+  const [creatorFilter, setCreatorFilter] = useState<'' | 'mine'>('')
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
   const { data: exercises, isLoading, error, refetch } = useExerciseList()
@@ -48,13 +49,25 @@ export default function ExerciseListPage() {
     ...Object.entries(DIFFICULTY_LABELS).map(([v, l]) => ({ value: v, label: l })),
   ]
 
+  const creatorOptions = useMemo(
+    () => [
+      { value: '', label: 'Tất cả' },
+      ...(user?.id ? [{ value: 'mine' as const, label: 'Bài của tôi' }] : []),
+    ],
+    [user?.id],
+  )
+
   const filtered = useMemo(() => {
     if (!exercises) return []
     return exercises
       .filter((e) => !search     || e.name.toLowerCase().includes(search.toLowerCase()))
       .filter((e) => !catFilter  || String(e.category_id) === catFilter)
       .filter((e) => !diffFilter || e.difficulty_level === diffFilter)
-  }, [exercises, search, catFilter, diffFilter])
+      .filter((e) => {
+        if (creatorFilter !== 'mine' || !user) return true
+        return e.created_by === user.id
+      })
+  }, [exercises, search, catFilter, diffFilter, creatorFilter, user])
 
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
@@ -79,6 +92,14 @@ export default function ExerciseListPage() {
         <SearchInput value={search} onChange={setSearch} placeholder="Tìm bài tập..." className="flex-1" />
         <Select options={categories} value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="sm:w-44" />
         <Select options={diffOptions} value={diffFilter} onChange={(e) => setDiffFilter(e.target.value)} className="sm:w-40" />
+        {user?.id && (
+          <Select
+            options={creatorOptions}
+            value={creatorFilter}
+            onChange={(e) => setCreatorFilter(e.target.value as '' | 'mine')}
+            className="sm:w-40"
+          />
+        )}
       </div>
 
       {/* Grid */}
