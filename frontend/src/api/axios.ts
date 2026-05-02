@@ -54,7 +54,15 @@ apiClient.interceptors.response.use(
     const status = error.response?.status
 
     /* ── 401: attempt token refresh once ───────────────── */
-    if (status === 401 && !original._retry) {
+    /* Skip refresh for auth routes — let their 401 fall through
+       to the normalization block so the backend message is shown. */
+    const isAuthRoute = original.url
+      ? ['/auth/login', '/auth/register', '/auth/logout'].some((p) =>
+          original.url!.includes(p),
+        )
+      : false
+
+    if (status === 401 && !original._retry && !isAuthRoute) {
       original._retry = true
 
       if (isRefreshing) {
@@ -92,15 +100,20 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null)
         isRefreshing = false
         triggerLogout()
-        imperativeNavigate(ROUTES.LOGIN)
-        return Promise.reject(refreshError)
+        imperativeNavigate(ROUTES.LOGIN, { replace: true })
+        /* Reject with a clear message, not the raw Axios string */
+        return Promise.reject(
+          Object.assign(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'), {
+            status: 401,
+          }),
+        )
       }
     }
 
-    /* ── 403: redirect to forbidden page ───────────────── */
-    if (status === 403) {
-      imperativeNavigate(ROUTES.FORBIDDEN)
-    }
+    /* ── 403: DO NOT navigate globally ───────────────────
+       Background refetches / in-flight requests from other pages can return 403
+       and would otherwise force the UI back to /403 repeatedly.
+       Let screens decide how to present 403 (toast / ErrorState / RoleGuard). */
 
     /* ── Normalise error shape ──────────────────────────── */
     const serverMessage =

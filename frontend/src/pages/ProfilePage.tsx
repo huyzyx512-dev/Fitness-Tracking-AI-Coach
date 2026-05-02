@@ -13,6 +13,10 @@ import { useAuthStore }   from '@/store/auth.store'
 import { useUpdateUser }  from '@/hooks/user/useUpdateUser'
 import { GENDER_LABELS }  from '@/lib/constants'
 
+function msg(v: unknown): string | undefined {
+  return typeof v === 'string' ? v : undefined
+}
+
 /* Schema mirrors backend updateUserSchema.
    z.union is used for optional number fields so the input type stays
    string | number (not unknown), keeping it compatible with RHF's Resolver. */
@@ -86,7 +90,7 @@ export default function ProfilePage() {
           <Input
             label="Họ và tên"
             leftIcon={<User size={15} />}
-            error={errors.name?.message}
+            error={msg(errors.name?.message)}
             required
             {...register('name')}
           />
@@ -97,14 +101,14 @@ export default function ProfilePage() {
               type="number"
               step="0.1"
               leftIcon={<Scale size={15} />}
-              error={errors.weight?.message}
+              error={msg(errors.weight?.message)}
               {...register('weight')}
             />
             <Input
               label="Chiều cao (cm)"
               type="number"
               step="0.1"
-              error={errors.height?.message}
+              error={msg(errors.height?.message)}
               {...register('height')}
             />
           </div>
@@ -114,14 +118,14 @@ export default function ProfilePage() {
               label="Giới tính"
               options={genderOptions}
               placeholder="Chọn giới tính"
-              error={errors.gender?.message}
+              error={msg(errors.gender?.message)}
               {...register('gender')}
             />
             <Input
               label="Ngày sinh"
               type="date"
               leftIcon={<Calendar size={15} />}
-              error={errors.date_of_birth?.message}
+              error={msg(errors.date_of_birth?.message)}
               {...register('date_of_birth')}
             />
           </div>

@@ -13,21 +13,34 @@ import { useExerciseList } from '@/hooks/exercise/useExerciseList'
 import { ROUTES, DIFFICULTY_LABELS, DIFFICULTY } from '@/lib/constants'
 import type { Exercise, CreateExercisePayload } from '@/types/exercise.types'
 
-/* Schema mirrors backend exerciseSchema exactly */
+/* Create Exercise:
+   - Field có dấu * là bắt buộc
+   - Field không có * có thể bỏ trống
+   - Nếu có nhập URL thì phải hợp lệ */
+const optionalInt = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().int().positive()])
+  .optional()
+
+const optionalPositiveNumber = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().positive('Giá trị MET phải lớn hơn 0')])
+  .optional()
+
+const optionalText = (msg: string) => z.string().trim().min(1, msg).optional().or(z.literal(''))
+
 const schema = z.object({
   name:             z.string().trim().min(1, 'Vui lòng nhập tên bài tập').max(100),
-  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập'),
-  category_id:      z.coerce.number({ invalid_type_error: 'Vui lòng chọn nhóm bài tập' })
-                      .int().positive('Vui lòng chọn nhóm bài tập'),
-  muscle_group_ids: z.array(z.number()).min(1, 'Vui lòng chọn ít nhất một nhóm cơ'),
+  description:      optionalText('Vui lòng nhập mô tả bài tập'),
+  category_id:      optionalInt,
+  muscle_group_ids: z.array(z.number()).optional(),
   difficulty_level: z.enum(['cơ bản', 'trung bình', 'nâng cao'] as const),
-  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ'),
-  met_value:        z.coerce.number().positive('Giá trị MET phải lớn hơn 0').optional(),
+  equipment:        optionalText('Vui lòng nhập dụng cụ'),
+  met_value:        optionalPositiveNumber,
   video_url:        z.string().url('URL không hợp lệ').optional().or(z.literal('')),
   thumbnail_url:    z.string().url('URL không hợp lệ').optional().or(z.literal('')),
 })
 
-export type ExerciseFormValues = z.infer<typeof schema>
+type ExerciseFormInput = z.input<typeof schema>
+export type ExerciseFormValues = z.output<typeof schema>
 
 const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label]) => ({ value, label }))
 
@@ -60,11 +73,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
   const {
     register,
     handleSubmit,
-    control,
     watch,
     setValue,
     formState: { errors, isDirty },
-  } = useForm<ExerciseFormValues>({
+  } = useForm<ExerciseFormInput>({
     resolver: zodResolver(schema),
     defaultValues: { difficulty_level: DIFFICULTY.CO_BAN, muscle_group_ids: [], ...defaultValues },
   })
@@ -86,7 +98,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
 
   return (
     <Card>
-      <form onSubmit={handleSubmit((v) => onSubmit(v as unknown as CreateExercisePayload))} className="space-y-5">
+      <form
+        onSubmit={handleSubmit((v) => onSubmit(schema.parse(v) as CreateExercisePayload))}
+        className="space-y-5"
+      >
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
             label="Tên bài tập"
@@ -108,7 +123,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
           label="Mô tả"
           placeholder="Hướng dẫn kỹ thuật, lưu ý..."
           error={errors.description?.message}
-          required
           {...register('description')}
         />
 
@@ -118,14 +132,12 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
             options={categories}
             placeholder="Chọn nhóm"
             error={errors.category_id?.message}
-            required
             {...register('category_id')}
           />
           <Input
             label="Thiết bị"
             placeholder="Barbell, Dumbbell, Cable..."
             error={errors.equipment?.message}
-            required
             {...register('equipment')}
           />
         </div>
@@ -159,9 +171,7 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
 
         {/* Muscle group multi-select */}
         <div>
-          <p className="text-sm font-medium text-foreground/80 mb-2">
-            Nhóm cơ <span className="text-danger">*</span>
-          </p>
+          <p className="text-sm font-medium text-foreground/80 mb-2">Nhóm cơ</p>
           {muscleGroups.length === 0 ? (
             <p className="text-xs text-muted italic">
               Chưa có dữ liệu nhóm cơ — hãy thêm bài tập khác trước để hệ thống nhận diện.
@@ -185,11 +195,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
               ))}
             </div>
           )}
-          {errors.muscle_group_ids && (
-            <p className="text-xs text-danger mt-1" role="alert">
-              {errors.muscle_group_ids.message}
-            </p>
-          )}
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -205,7 +210,7 @@ export function exerciseToFormValues(exercise: Exercise): ExerciseFormValues {
   return {
     name:             exercise.name,
     description:      exercise.description ?? '',
-    category_id:      exercise.category_id ?? (0 as unknown as number),
+    category_id:      exercise.category_id ?? (undefined as unknown as number),
     difficulty_level: exercise.difficulty_level,
     equipment:        exercise.equipment ?? '',
     met_value:        exercise.met_value,

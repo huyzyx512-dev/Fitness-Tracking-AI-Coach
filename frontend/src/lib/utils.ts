@@ -71,22 +71,80 @@ export function getInitials(name: string | null | undefined): string {
     .toUpperCase()
 }
 
-/** Extract error message from API error or unknown */
+/* ─── HTTP status → friendly Vietnamese fallback ─── */
+const STATUS_MESSAGES: Record<number, string> = {
+  400: 'Dữ liệu không hợp lệ',
+  401: 'Bạn cần đăng nhập để tiếp tục',
+  403: 'Bạn không có quyền thực hiện hành động này',
+  404: 'Không tìm thấy dữ liệu yêu cầu',
+  409: 'Dữ liệu đã tồn tại',
+  422: 'Dữ liệu không hợp lệ',
+  429: 'Quá nhiều yêu cầu, vui lòng thử lại sau',
+  500: 'Lỗi máy chủ, vui lòng thử lại sau',
+  503: 'Dịch vụ tạm thời không khả dụng',
+}
+
+/**
+ * Extract the most useful human-readable error message from any thrown value.
+ *
+ * Priority:
+ *  1. error.message (set by axios interceptor from backend JSON { message })
+ *  2. First fieldError from backend Zod details.fieldErrors
+ *  3. HTTP status fallback (STATUS_MESSAGES)
+ *  4. Generic Vietnamese fallback
+ */
 export function getErrorMessage(error: unknown): string {
   if (!error) return 'Đã xảy ra lỗi không xác định'
   if (typeof error === 'string') return error
+
   if (error && typeof error === 'object') {
     const e = error as Record<string, unknown>
-    if (typeof e.message === 'string') return e.message
+
+    /* 1. Normalised error.message set by our interceptor */
+    if (typeof e.message === 'string' && e.message && !isRawAxiosMessage(e.message)) {
+      return e.message
+    }
+
+    /* 2. Backend Zod details.fieldErrors — pick the first one */
+    if (e.details && typeof e.details === 'object') {
+      const details = e.details as Record<string, unknown>
+      const fieldErrors = details.fieldErrors as Record<string, string[]> | undefined
+      if (fieldErrors) {
+        const firstField = Object.values(fieldErrors).find(
+          (msgs) => Array.isArray(msgs) && msgs.length > 0,
+        )
+        if (firstField) return (firstField as string[])[0]
+      }
+      const formErrors = details.formErrors as string[] | undefined
+      if (Array.isArray(formErrors) && formErrors.length > 0) return formErrors[0]
+    }
+
+    /* 3. Status-based fallback */
+    const status = typeof e.status === 'number' ? e.status : undefined
+    if (status && STATUS_MESSAGES[status]) {
+      /* Still prefer backend message even if it looks raw when status known */
+      if (typeof e.message === 'string' && e.message) return e.message
+      return STATUS_MESSAGES[status]
+    }
+
+    /* 4. Fallback: raw response data */
     if (e.response && typeof e.response === 'object') {
       const r = e.response as Record<string, unknown>
+      const s = typeof r.status === 'number' ? r.status : undefined
       if (r.data && typeof r.data === 'object') {
         const d = r.data as Record<string, unknown>
-        if (typeof d.message === 'string') return d.message
+        if (typeof d.message === 'string' && d.message) return d.message
       }
+      if (s && STATUS_MESSAGES[s]) return STATUS_MESSAGES[s]
     }
   }
+
   return 'Đã xảy ra lỗi không xác định'
+}
+
+/** Detect the raw Axios-generated message we never want to show users */
+function isRawAxiosMessage(msg: string): boolean {
+  return /^Request failed with status code \d+$/.test(msg) || msg === 'Network Error'
 }
 
 /** Clamp a value between min and max */

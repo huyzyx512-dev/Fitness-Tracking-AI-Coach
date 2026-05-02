@@ -27,7 +27,7 @@ function AuthLayout() {
           </div>
           <span
             className="text-4xl text-foreground"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}
+            style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}
           >
             FITTRACK
           </span>

@@ -1,12 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Mulish:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap');
+/*
+  Fonts:
+  • Barlow Semi Condensed — display/headings (condensed, bold, full Vietnamese coverage)
+  • Be Vietnam Pro        — body text (purpose-built for Vietnamese, all weights)
+*/
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
 
 /* ─── Design Tokens ─────────────────────────────────────── */
 @theme {
   /* Fonts */
-  --font-display: "Bebas Neue", sans-serif;
-  --font-sans: "Mulish", "Helvetica Neue", sans-serif;
+  --font-display: "Barlow Semi Condensed", sans-serif;
+  --font-sans: "Be Vietnam Pro", sans-serif;
 
   /* Background layers */
   --color-canvas:       #08090E;
@@ -76,7 +81,10 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   font-size: 15px;
-  line-height: 1.65;
+  line-height: 1.7;
+  /* Prevent long Vietnamese words / compound diacritics from overflowing containers */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 #root {
@@ -86,13 +94,22 @@ body {
 /* ─── Typography ─────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  letter-spacing: 0.02em;
-  line-height: 1.15;
+  font-weight: 700;
+  /*
+    Barlow Semi Condensed is wider than Bebas Neue — tighter tracking looks better.
+    line-height 1.25 gives Vietnamese diacritics (ắ, ồ, ừ…) enough vertical room.
+  */
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: var(--color-foreground);
   margin: 0;
 }
 
-p { margin: 0; }
+p {
+  margin: 0;
+  /* Generous line-height keeps stacked Vietnamese tonal marks readable */
+  line-height: 1.7;
+}
 a { color: inherit; text-decoration: none; }
 
 /* ─── Scrollbar ──────────────────────────────────────────── */

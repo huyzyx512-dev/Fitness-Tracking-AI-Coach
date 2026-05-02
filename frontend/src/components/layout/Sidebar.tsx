@@ -47,7 +47,7 @@ function Sidebar({ className }: SidebarProps) {
               <Zap size={16} className="text-white" fill="white" />
             </div>
             <span
-              className="text-2xl font-display text-foreground tracking-wider"
+              className="text-2xl font-display text-foreground tracking-normal"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               FITTRACK
