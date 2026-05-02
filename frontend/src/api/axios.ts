@@ -1,5 +1,6 @@
 import axios, {
   type AxiosError,
+  type AxiosInstance,
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from 'axios'
@@ -13,6 +14,13 @@ export const apiClient = axios.create({
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10_000,
   withCredentials: true, // send HttpOnly refresh-token cookie
   headers: { 'Content-Type': 'application/json' },
+})
+
+/* Long-timeout client for multipart uploads (no default Content-Type — FormData sets boundary) */
+export const apiUploadClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: Number(import.meta.env.VITE_UPLOAD_TIMEOUT_MS) || 600_000,
+  withCredentials: true,
 })
 
 /* ─── Separate refresh client (no interceptors → avoids loops) */
@@ -36,96 +44,98 @@ function processQueue(error: unknown, token: string | null): void {
   refreshQueue = []
 }
 
-/* ─── Request interceptor ───────────────────────────────── */
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken()
-    if (token) config.headers.Authorization = `Bearer ${token}`
-    return config
-  },
-  (error) => Promise.reject(error),
-)
+function attachAuthInterceptors(client: AxiosInstance): void {
+  client.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = getAccessToken()
+      if (token) config.headers.Authorization = `Bearer ${token}`
+      return config
+    },
+    (error) => Promise.reject(error),
+  )
 
-/* ─── Response interceptor ──────────────────────────────── */
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const original = error.config as AxiosRequestConfig & { _retry?: boolean }
-    const status = error.response?.status
+  client.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
+      const status = error.response?.status
 
-    /* ── 401: attempt token refresh once ───────────────── */
-    /* Skip refresh for auth routes — let their 401 fall through
-       to the normalization block so the backend message is shown. */
-    const isAuthRoute = original.url
-      ? ['/auth/login', '/auth/register', '/auth/logout'].some((p) =>
-          original.url!.includes(p),
-        )
-      : false
-
-    if (status === 401 && !original._retry && !isAuthRoute) {
-      original._retry = true
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          refreshQueue.push({
-            resolve: (token) => {
-              if (original.headers) {
-                (original.headers as Record<string, string>)['Authorization'] =
-                  `Bearer ${token}`
-              }
-              resolve(apiClient(original))
-            },
-            reject,
-          })
-        })
-      }
-
-      isRefreshing = true
-
-      try {
-        const { data } = await refreshClient.post<{ accessToken: string }>(
-          API_ENDPOINTS.REFRESH_TOKEN,
-        )
-        const newToken = data.accessToken
-        setAccessToken(newToken)
-        processQueue(null, newToken)
-        isRefreshing = false
-
-        if (original.headers) {
-          (original.headers as Record<string, string>)['Authorization'] =
-            `Bearer ${newToken}`
-        }
-        return apiClient(original)
-      } catch (refreshError) {
-        processQueue(refreshError, null)
-        isRefreshing = false
-        triggerLogout()
-        imperativeNavigate(ROUTES.LOGIN, { replace: true })
-        /* Reject with a clear message, not the raw Axios string */
+      /* Không có config (một số lỗi mạng/cancel) — không retry refresh */
+      if (!original) {
         return Promise.reject(
-          Object.assign(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'), {
-            status: 401,
+          Object.assign(new Error(error.message || 'Đã xảy ra lỗi'), {
+            status,
           }),
         )
       }
-    }
 
-    /* ── 403: DO NOT navigate globally ───────────────────
-       Background refetches / in-flight requests from other pages can return 403
-       and would otherwise force the UI back to /403 repeatedly.
-       Let screens decide how to present 403 (toast / ErrorState / RoleGuard). */
+      const isAuthRoute = original.url
+        ? ['/auth/login', '/auth/register', '/auth/logout'].some((p) =>
+            original.url!.includes(p),
+          )
+        : false
 
-    /* ── Normalise error shape ──────────────────────────── */
-    const serverMessage =
-      (error.response?.data as { message?: string })?.message ??
-      error.message ??
-      'Đã xảy ra lỗi'
+      if (status === 401 && !original._retry && !isAuthRoute) {
+        original._retry = true
 
-    const apiError = Object.assign(new Error(serverMessage), {
-      status,
-      details: (error.response?.data as { details?: unknown })?.details,
-    })
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            refreshQueue.push({
+              resolve: (token) => {
+                if (original.headers) {
+                  (original.headers as Record<string, string>)['Authorization'] =
+                    `Bearer ${token}`
+                }
+                resolve(client(original))
+              },
+              reject,
+            })
+          })
+        }
 
-    return Promise.reject(apiError)
-  },
-)
+        isRefreshing = true
+
+        try {
+          const { data } = await refreshClient.post<{ accessToken: string }>(
+            API_ENDPOINTS.REFRESH_TOKEN,
+          )
+          const newToken = data.accessToken
+          setAccessToken(newToken)
+          processQueue(null, newToken)
+          isRefreshing = false
+
+          if (original.headers) {
+            (original.headers as Record<string, string>)['Authorization'] =
+              `Bearer ${newToken}`
+          }
+          return client(original)
+        } catch (refreshError) {
+          processQueue(refreshError, null)
+          isRefreshing = false
+          triggerLogout()
+          imperativeNavigate(ROUTES.LOGIN, { replace: true })
+          return Promise.reject(
+            Object.assign(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'), {
+              status: 401,
+            }),
+          )
+        }
+      }
+
+      const serverMessage =
+        (error.response?.data as { message?: string })?.message ??
+        error.message ??
+        'Đã xảy ra lỗi'
+
+      const apiError = Object.assign(new Error(serverMessage), {
+        status,
+        details: (error.response?.data as { details?: unknown })?.details,
+      })
+
+      return Promise.reject(apiError)
+    },
+  )
+}
+
+attachAuthInterceptors(apiClient)
+attachAuthInterceptors(apiUploadClient)

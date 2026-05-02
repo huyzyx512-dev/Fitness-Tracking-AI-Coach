@@ -121,6 +121,7 @@ export default function ExerciseListPage() {
               key={ex.id}
               exercise={ex}
               canEdit={isAdmin || ex.created_by === user?.id}
+              onOpenDetail={() => navigate(ROUTES.EXERCISE_DETAIL(ex.id))}
               onEdit={() => navigate(`${ROUTES.EXERCISES}/${ex.id}/edit`)}
               onDelete={() => setDeleteId(ex.id)}
             />
@@ -142,10 +143,31 @@ export default function ExerciseListPage() {
 }
 
 function ExerciseCard({
-  exercise, canEdit, onEdit, onDelete,
-}: { exercise: Exercise; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
+  exercise,
+  canEdit,
+  onOpenDetail,
+  onEdit,
+  onDelete,
+}: {
+  exercise: Exercise
+  canEdit: boolean
+  onOpenDetail: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
   return (
-    <div className="rounded-xl bg-card border border-border p-5 hover:border-border-hover transition-all duration-200 group">
+    <div
+      role="link"
+      tabIndex={0}
+      className="rounded-xl bg-card border border-border p-5 hover:border-border-hover transition-all duration-200 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      onClick={onOpenDetail}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpenDetail()
+        }
+      }}
+    >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
@@ -157,6 +179,7 @@ function ExerciseCard({
           </div>
         </div>
         {canEdit && (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Dropdown
             trigger={
               <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity -mt-1">
@@ -169,6 +192,7 @@ function ExerciseCard({
             ]}
             align="right"
           />
+          </div>
         )}
       </div>
 

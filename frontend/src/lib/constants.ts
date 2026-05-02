@@ -8,6 +8,7 @@ export const ROUTES = {
   WORKOUT_DETAIL:  (id: number | string) => `/workouts/${id}`,
   WORKOUT_EDIT:    (id: number | string) => `/workouts/${id}/edit`,
   EXERCISES:       '/exercises',
+  EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
   PROFILE:         '/profile',
   NOT_FOUND:       '/404',
