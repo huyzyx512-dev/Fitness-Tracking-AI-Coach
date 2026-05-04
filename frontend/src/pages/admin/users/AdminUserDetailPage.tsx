@@ -14,6 +14,7 @@ const ACTION_LABELS: Record<AdminAuditAction, string> = {
   USER_ROLE_CHANGED: 'Thay đổi vai trò',
   USER_PASSWORD_RESET: 'Đặt lại mật khẩu',
   USER_CREATED: 'Tạo tài khoản',
+  USER_LOGIN: 'Đăng nhập',
 }
 
 function isAuditAction(value: string): value is AdminAuditAction {
@@ -42,6 +43,14 @@ function describeMetadata(entry: AdminAuditLogEntry): string {
     case 'USER_CREATED': {
       const r = typeof m.assignedRole === 'string' ? m.assignedRole : ''
       return r ? `Vai trò: ${r}` : ''
+    }
+    case 'USER_LOGIN': {
+      const ipAddress = typeof m.ipAddress === 'string' ? m.ipAddress : ''
+      const userAgent = typeof m.userAgent === 'string' ? m.userAgent : ''
+      if (ipAddress && userAgent) return `IP: ${ipAddress} • Thiết bị: ${userAgent}`
+      if (ipAddress) return `IP: ${ipAddress}`
+      if (userAgent) return `Thiết bị: ${userAgent}`
+      return 'Đăng nhập thành công'
     }
     default:
       return ''
@@ -89,7 +98,7 @@ export default function AdminUserDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
           title="CHI TIẾT NGƯỜI DÙNG"
-          description="Nhật ký thao tác quản trị lên tài khoản này (khóa/mở khóa, vai trò, đặt lại mật khẩu)."
+          description="Nhật ký thao tác quản trị và đăng nhập của tài khoản này."
         />
         <Link
           to={ROUTES.ADMIN_USERS}

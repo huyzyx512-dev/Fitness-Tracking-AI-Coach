@@ -15,7 +15,7 @@ export const register = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const payload = parseSchema(loginSchema, req.body);
-  const result = await AuthService.login(payload);
+  const result = await AuthService.login(payload, req);
 
   authLog("login_response_200", { userId: result.userId });
 

@@ -47,6 +47,7 @@ export type AdminAuditAction =
   | 'USER_ROLE_CHANGED'
   | 'USER_PASSWORD_RESET'
   | 'USER_CREATED'
+  | 'USER_LOGIN'
 
 export interface AdminAuditLogActor {
   id: number

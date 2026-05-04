@@ -8,6 +8,7 @@ import {
 } from "../errors/AppError.js";
 import TokenService from "./tokenService.js";
 import { authLog, maskEmail, tokenTail } from "../utils/authDebugLog.js";
+import { ADMIN_AUDIT_ACTIONS, recordAdminAudit } from "./adminAuditLogService.js";
 
 const VALID_GENDERS = ["nam", "nữ", "khác"];
 
@@ -54,7 +55,7 @@ class AuthService {
     }
   }
 
-  static async login({ email, password }) {
+  static async login({ email, password }, req) {
     authLog("login_attempt", { email: maskEmail(email) });
 
     const user = await db.User.findOne({ where: { email } });
@@ -81,6 +82,14 @@ class AuthService {
     authLog("refresh_session_created", {
       userId: user.id,
       ...(tokenTail(refreshToken) ? { refreshTail: tokenTail(refreshToken) } : {}),
+    });
+
+    await recordAdminAudit({
+      actorUserId: user.id,
+      targetUserId: user.id,
+      action: ADMIN_AUDIT_ACTIONS.USER_LOGIN,
+      metadata: { email: user.email },
+      req,
     });
 
     return {
