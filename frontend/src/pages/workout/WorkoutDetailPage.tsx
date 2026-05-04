@@ -23,7 +23,15 @@ import { useCompleteWorkout } from '@/hooks/workout/useCompleteWorkout'
 import { useAddExerciseToWorkout, useUpdateExerciseInWorkout, useRemoveExerciseFromWorkout } from '@/hooks/workout/useWorkoutExercises'
 import { useExerciseList }   from '@/hooks/exercise/useExerciseList'
 import { ROUTES, WORKOUT_STATUS, WORKOUT_STATUS_LABELS, DIFFICULTY_LABELS } from '@/lib/constants'
-import { formatDate, formatDatetime, formatDuration, formatCalories, cn } from '@/lib/utils'
+import { useAuthStore } from '@/store/auth.store'
+import {
+  formatDate,
+  formatDatetime,
+  formatDuration,
+  formatCalories,
+  cn,
+  computeWorkoutExerciseEnergyRows,
+} from '@/lib/utils'
 import type { BadgeVariant } from '@/components/ui/Badge'
 import type { WorkoutExercise } from '@/types/workout.types'
 
@@ -35,6 +43,7 @@ export default function WorkoutDetailPage() {
   const { id } = useParams<{ id: string }>()
   const workoutId = Number(id)
   const navigate  = useNavigate()
+  const user      = useAuthStore((s) => s.user)
 
   const [showDelete,    setShowDelete]    = useState(false)
   const [showComplete,  setShowComplete]  = useState(false)
@@ -70,6 +79,15 @@ export default function WorkoutDetailPage() {
   const isInProgress  = workout.status === WORKOUT_STATUS.IN_PROGRESS
   const isCompleted   = workout.status === WORKOUT_STATUS.COMPLETED
   const canEdit       = !isCompleted
+
+  const energyMetrics = useMemo(
+    () => computeWorkoutExerciseEnergyRows(workout.exercises, workout.log, user?.weight ?? 70),
+    [workout.exercises, workout.log, user?.weight],
+  )
+
+  const durationLabelExtra =
+    workout.exercises.length > 0 && !energyMetrics.isActualTotals ? ' · Ước tính' : ''
+  const caloriesLabelExtra = durationLabelExtra
 
   return (
     <div className="space-y-5 animate-fade-up max-w-4xl">
@@ -120,12 +138,26 @@ export default function WorkoutDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <InfoTile icon={<Badge variant={statusVariant[workout.status]} dot>{WORKOUT_STATUS_LABELS[workout.status]}</Badge>} label="Trạng thái" />
         <InfoTile icon={<span className="text-sm text-muted">{formatDate(workout.scheduled_at)}</span>} label="Lịch tập" iconComp={<CalendarDays size={14} className="text-muted" />} />
-        {workout.log && (
-          <>
-            <InfoTile icon={<span className="text-sm text-foreground font-medium">{formatDuration(workout.log.duration_minutes)}</span>} label="Thời lượng" iconComp={<Clock size={14} className="text-muted" />} />
-            <InfoTile icon={<span className="text-sm text-foreground font-medium">{formatCalories(workout.log.calories_burned)}</span>} label="Calo" iconComp={<Flame size={14} className="text-accent" />} />
-          </>
-        )}
+        <InfoTile
+          icon={
+            <span className="text-sm text-foreground font-medium tabular-nums">
+              {energyMetrics.totalDurationMinutes > 0
+                ? formatDuration(energyMetrics.totalDurationMinutes)
+                : '—'}
+            </span>
+          }
+          label={`Thời lượng${durationLabelExtra}`}
+          iconComp={<Clock size={14} className="text-muted" />}
+        />
+        <InfoTile
+          icon={
+            <span className="text-sm text-foreground font-medium tabular-nums">
+              {energyMetrics.totalCalories > 0 ? formatCalories(energyMetrics.totalCalories) : '—'}
+            </span>
+          }
+          label={`Calo${caloriesLabelExtra}`}
+          iconComp={<Flame size={14} className="text-accent" />}
+        />
         {workout.notes && (
           <div className="col-span-2 sm:col-span-4">
             <Card padding="sm" className="flex items-start gap-2">
@@ -161,6 +193,8 @@ export default function WorkoutDetailPage() {
                 key={we.id}
                 index={i + 1}
                 item={we}
+                durationMinutes={energyMetrics.rowDurationMinutes[i] ?? 0}
+                caloriesBurned={energyMetrics.rowCalories[i] ?? 0}
                 canEdit={canEdit}
                 onEdit={() => setEditingEx(we)}
                 onDelete={() => setDeleteExId(we.id)}
@@ -271,10 +305,18 @@ function InfoTile({ icon, label, iconComp }: { icon: React.ReactNode; label: str
 }
 
 function ExerciseRow({
-  index, item, canEdit, onEdit, onDelete,
+  index,
+  item,
+  durationMinutes,
+  caloriesBurned,
+  canEdit,
+  onEdit,
+  onDelete,
 }: {
   index: number
   item: WorkoutExercise
+  durationMinutes: number
+  caloriesBurned: number
   canEdit: boolean
   onEdit: () => void
   onDelete: () => void
@@ -291,6 +333,18 @@ function ExerciseRow({
           <Pill>{item.reps} reps</Pill>
           {item.weight > 0 && <Pill>{item.weight} kg</Pill>}
           {item.rest_time_seconds > 0 && <Pill>Nghỉ {item.rest_time_seconds}s</Pill>}
+          {(durationMinutes > 0 || caloriesBurned > 0) && (
+            <>
+              <Pill className="inline-flex items-center gap-1">
+                <Clock size={11} aria-hidden />
+                {formatDuration(durationMinutes)}
+              </Pill>
+              <Pill className="inline-flex items-center gap-1">
+                <Flame size={11} className="text-accent" aria-hidden />
+                {formatCalories(caloriesBurned)}
+              </Pill>
+            </>
+          )}
         </div>
       </div>
       {canEdit && (
@@ -311,9 +365,11 @@ function ExerciseRow({
   )
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
+function Pill({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className="text-xs text-muted bg-card-raised px-2 py-0.5 rounded-md">{children}</span>
+    <span className={cn('text-xs text-muted bg-card-raised px-2 py-0.5 rounded-md', className)}>
+      {children}
+    </span>
   )
 }
 

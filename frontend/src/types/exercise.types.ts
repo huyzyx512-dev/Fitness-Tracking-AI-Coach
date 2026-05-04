@@ -33,6 +33,10 @@ export interface Exercise {
   difficulty_level: DifficultyLevel
   equipment: string | null
   met_value: number
+  /** Optional: when API provides planned duration per exercise */
+  duration_minutes?: number | null
+  /** Optional: when API provides estimated calories per exercise */
+  calories_burned?: number | null
   video_url: string | null
   thumbnail_url: string | null
   category: Category | null
