@@ -8,10 +8,18 @@ export function useUpdateAdminUserStatus() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: 'active' | 'locked' }) =>
-      userApi.updateAdminUserStatus(id, status),
-    onSuccess: ({ message }) => {
+    mutationFn: ({
+      id,
+      status,
+      adminPassword,
+    }: {
+      id: number
+      status: 'active' | 'locked'
+      adminPassword: string
+    }) => userApi.updateAdminUserStatus(id, status, adminPassword),
+    onSuccess: ({ message }, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_USERS() })
+      queryClient.invalidateQueries({ queryKey: ['admin-user-audit', variables.id] })
       toast.success(message || 'Đã cập nhật trạng thái tài khoản')
     },
     onError: (error: unknown) => {

@@ -3,7 +3,14 @@ import bcrypt from "bcrypt";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import db from "../models/index.js";
 import { parseSchema } from "../validators/common.js";
-import { adminResetPasswordSchema, updateUserSchema } from "../validators/userValidator.js";
+import {
+  adminResetPasswordSchema,
+  adminRoleChangeSchema,
+  adminStatusChangeSchema,
+  updateUserSchema,
+} from "../validators/userValidator.js";
+import { recordAdminAudit, ADMIN_AUDIT_ACTIONS } from "../services/adminAuditLogService.js";
+import { assertAdminPasswordReauth } from "../services/adminPasswordReauthService.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../errors/AppError.js";
 import { Op } from "sequelize";
 import TokenService from "../services/tokenService.js";
@@ -146,10 +153,8 @@ export const updateAdminUserStatus = asyncHandler(async (req, res) => {
   const userId = Number(req.params.id);
   if (!userId) throw new ValidationError("ID người dùng không hợp lệ");
 
-  const status = String(req.body?.status || "").trim().toLowerCase();
-  if (!ALLOWED_USER_STATUS.includes(status)) {
-    throw new ValidationError("Trạng thái không hợp lệ");
-  }
+  const { status, adminPassword } = parseSchema(adminStatusChangeSchema, req.body);
+  await assertAdminPasswordReauth(req.user.id, adminPassword);
 
   if (req.user.id === userId && status === "locked") {
     throw new ValidationError("Không thể tự khóa tài khoản của chính bạn");
@@ -171,8 +176,17 @@ export const updateAdminUserStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  const previousStatus = toStatusFromTokenVersion(targetUser.tokenVersion);
   const nextTokenVersion = buildTokenVersionByStatus(targetUser.tokenVersion, status);
   await targetUser.update({ tokenVersion: nextTokenVersion });
+
+  await recordAdminAudit({
+    actorUserId: req.user.id,
+    targetUserId: userId,
+    action: ADMIN_AUDIT_ACTIONS.USER_STATUS_CHANGED,
+    metadata: { previousStatus, nextStatus: status },
+    req,
+  });
 
   const updatedUser = await db.User.findOne({
     where: { id: userId },
@@ -193,10 +207,8 @@ export const updateAdminUserRole = asyncHandler(async (req, res) => {
   const userId = Number(req.params.id);
   if (!userId) throw new ValidationError("ID người dùng không hợp lệ");
 
-  const nextRole = String(req.body?.role || "").trim().toUpperCase();
-  if (!ALLOWED_ADMIN_ROLES.includes(nextRole)) {
-    throw new ValidationError("Vai trò không hợp lệ");
-  }
+  const { role: nextRole, adminPassword } = parseSchema(adminRoleChangeSchema, req.body);
+  await assertAdminPasswordReauth(req.user.id, adminPassword);
 
   const roleRecord = await db.Role.findOne({ where: { name: nextRole } });
   if (!roleRecord) throw new NotFoundError("Không tìm thấy vai trò");
@@ -218,7 +230,16 @@ export const updateAdminUserRole = asyncHandler(async (req, res) => {
     }
   }
 
+  const previousRole = targetUser.role?.name ?? null;
   await targetUser.update({ role_id: roleRecord.id });
+
+  await recordAdminAudit({
+    actorUserId: req.user.id,
+    targetUserId: userId,
+    action: ADMIN_AUDIT_ACTIONS.USER_ROLE_CHANGED,
+    metadata: { previousRole, nextRole },
+    req,
+  });
 
   const updatedUser = await db.User.findOne({
     where: { id: userId },
@@ -235,7 +256,8 @@ export const updateAdminUserRole = asyncHandler(async (req, res) => {
 
 export const resetAdminUserPassword = asyncHandler(async (req, res) => {
   assertAdmin(req);
-  parseSchema(adminResetPasswordSchema, req.body);
+  const { adminPassword } = parseSchema(adminResetPasswordSchema, req.body);
+  await assertAdminPasswordReauth(req.user.id, adminPassword);
 
   const userId = Number(req.params.id);
   if (!userId) throw new ValidationError("ID người dùng không hợp lệ");
@@ -260,6 +282,14 @@ export const resetAdminUserPassword = asyncHandler(async (req, res) => {
 
   await TokenService.revokeAllUserSessions(userId);
 
+  await recordAdminAudit({
+    actorUserId: req.user.id,
+    targetUserId: userId,
+    action: ADMIN_AUDIT_ACTIONS.USER_PASSWORD_RESET,
+    metadata: { sessionsRevoked: true },
+    req,
+  });
+
   const updatedUser = await db.User.findOne({
     where: { id: userId },
     attributes: { exclude: ["password_hash"] },
@@ -271,5 +301,51 @@ export const resetAdminUserPassword = asyncHandler(async (req, res) => {
     message: "Đã đặt lại mật khẩu và thu hồi phiên đăng nhập của người dùng",
     temporaryPassword,
     user: { ...plain, status: toStatusFromTokenVersion(plain.tokenVersion) },
+  });
+});
+
+export const getAdminUserAuditLogs = asyncHandler(async (req, res) => {
+  assertAdmin(req);
+
+  const userId = Number(req.params.id);
+  if (!userId) throw new ValidationError("ID người dùng không hợp lệ");
+
+  const exists = await db.User.findByPk(userId, { attributes: ["id"] });
+  if (!exists) throw new NotFoundError("Không tìm thấy người dùng");
+
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const offset = (page - 1) * limit;
+
+  const { rows, count } = await db.AdminAuditLog.findAndCountAll({
+    where: { target_user_id: userId },
+    include: [
+      {
+        model: db.User,
+        as: "actor",
+        attributes: ["id", "name", "email"],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+    limit,
+    offset,
+  });
+
+  const logs = rows.map((row) => {
+    const j = row.toJSON();
+    return {
+      id: j.id,
+      action: j.action,
+      metadata: j.metadata,
+      createdAt: j.createdAt,
+      actor: j.actor
+        ? { id: j.actor.id, name: j.actor.name, email: j.actor.email }
+        : null,
+    };
+  });
+
+  return res.status(200).json({
+    logs,
+    pagination: { page, limit, total: count },
   });
 });

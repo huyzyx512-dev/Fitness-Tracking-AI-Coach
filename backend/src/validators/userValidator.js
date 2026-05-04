@@ -12,8 +12,23 @@ export const updateUserSchema = z
     message: "Vui lòng cập nhật ít nhất một thông tin" 
   });
 
+const adminPasswordField = z
+  .string()
+  .min(1, "Nhập mật khẩu tài khoản quản trị để xác nhận");
+
+export const adminStatusChangeSchema = z.object({
+  status: z.enum(["active", "locked"]),
+  adminPassword: adminPasswordField,
+});
+
+export const adminRoleChangeSchema = z.object({
+  role: z.enum(["ADMIN", "USER", "COACH"]),
+  adminPassword: adminPasswordField,
+});
+
 export const adminResetPasswordSchema = z.object({
   confirm: z.boolean().refine((v) => v === true, {
     message: "Gửi confirm: true để xác nhận đặt lại mật khẩu",
   }),
+  adminPassword: adminPasswordField,
 });

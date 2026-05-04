@@ -35,6 +35,7 @@ export const API_ENDPOINTS = {
   ADMIN_USER_STATUS: (id: number | string) => `/user/admin/users/${id}/status`,
   ADMIN_USER_ROLE:   (id: number | string) => `/user/admin/users/${id}/role`,
   ADMIN_USER_RESET_PASSWORD: (id: number | string) => `/user/admin/users/${id}/reset-password`,
+  ADMIN_USER_AUDIT: (id: number | string) => `/user/admin/users/${id}/audit`,
 
   // Workouts
   WORKOUTS:        '/workouts',
@@ -61,6 +62,8 @@ export const QUERY_KEYS = {
   ME:           ['me'] as const,
   ADMIN_USERS:  (params?: object) => params ? ['admin-users', params] : ['admin-users'],
   ADMIN_USER:   (id: number | string) => ['admin-users', id] as const,
+  ADMIN_USER_AUDIT: (id: number | string, params?: object) =>
+    params ? (['admin-user-audit', id, params] as const) : (['admin-user-audit', id] as const),
   WORKOUTS:     (params?: object) => params ? ['workouts', params] : ['workouts'],
   WORKOUT:      (id: number | string) => ['workouts', id] as const,
   EXERCISES:    (params?: object) => params ? ['exercises', params] : ['exercises'],

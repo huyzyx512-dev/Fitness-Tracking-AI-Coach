@@ -22,6 +22,15 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         as: 'refreshTokens'
       });
+
+      User.hasMany(models.AdminAuditLog, {
+        foreignKey: 'actor_user_id',
+        as: 'adminAuditLogsAsActor',
+      });
+      User.hasMany(models.AdminAuditLog, {
+        foreignKey: 'target_user_id',
+        as: 'adminAuditLogsAsTarget',
+      });
     }
   }
   User.init({

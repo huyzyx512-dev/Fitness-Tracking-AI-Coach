@@ -33,3 +33,37 @@ export interface AdminResetPasswordResponse {
   message?: string
   temporaryPassword: string
 }
+
+export type AdminAuditAction =
+  | 'USER_STATUS_CHANGED'
+  | 'USER_ROLE_CHANGED'
+  | 'USER_PASSWORD_RESET'
+
+export interface AdminAuditLogActor {
+  id: number
+  name: string | null
+  email: string
+}
+
+export interface AdminAuditLogEntry {
+  id: number
+  /** Server-defined action code (extend `AdminAuditAction` as new actions are added). */
+  action: string
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  actor: AdminAuditLogActor | null
+}
+
+export interface AdminUserAuditListParams {
+  page?: number
+  limit?: number
+}
+
+export interface AdminUserAuditListResponse {
+  logs: AdminAuditLogEntry[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+  }
+}

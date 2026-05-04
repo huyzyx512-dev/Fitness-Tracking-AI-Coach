@@ -8,10 +8,18 @@ export function useUpdateAdminUserRole() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, role }: { id: number; role: 'ADMIN' | 'USER' | 'COACH' }) =>
-      userApi.updateAdminUserRole(id, role),
-    onSuccess: ({ message }) => {
+    mutationFn: ({
+      id,
+      role,
+      adminPassword,
+    }: {
+      id: number
+      role: 'ADMIN' | 'USER' | 'COACH'
+      adminPassword: string
+    }) => userApi.updateAdminUserRole(id, role, adminPassword),
+    onSuccess: ({ message }, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_USERS() })
+      queryClient.invalidateQueries({ queryKey: ['admin-user-audit', variables.id] })
       toast.success(message || 'Đã cập nhật vai trò')
     },
     onError: (error: unknown) => {

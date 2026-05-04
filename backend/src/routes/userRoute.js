@@ -1,5 +1,6 @@
 import express from "express"
 import {
+  getAdminUserAuditLogs,
   getAdminUsers,
   getUser,
   resetAdminUserPassword,
@@ -25,9 +26,10 @@ router.get("/", authenticationToken ,getUser)
 // Update current user's profile (name, weight, height, gender, date_of_birth)
 router.patch("/", authenticationToken, updateUser)
 
-router.get("/admin/users", authenticationToken, getAdminUsers)
-router.patch("/admin/users/:id/status", authenticationToken, updateAdminUserStatus)
-router.patch("/admin/users/:id/role", authenticationToken, updateAdminUserRole)
-router.post("/admin/users/:id/reset-password", authenticationToken, resetAdminUserPassword)
+router.get("/admin/users", authenticationToken, requireAdmin, getAdminUsers)
+router.get("/admin/users/:id/audit", authenticationToken, requireAdmin, getAdminUserAuditLogs)
+router.patch("/admin/users/:id/status", authenticationToken, requireAdmin, updateAdminUserStatus)
+router.patch("/admin/users/:id/role", authenticationToken, requireAdmin, updateAdminUserRole)
+router.post("/admin/users/:id/reset-password", authenticationToken, requireAdmin, resetAdminUserPassword)
 
 export default router

@@ -8,9 +8,11 @@ export function useResetAdminUserPassword() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => userApi.resetAdminUserPassword(id),
-    onSuccess: () => {
+    mutationFn: ({ id, adminPassword }: { id: number; adminPassword: string }) =>
+      userApi.resetAdminUserPassword(id, adminPassword),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_USERS() })
+      queryClient.invalidateQueries({ queryKey: ['admin-user-audit', variables.id] })
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error))

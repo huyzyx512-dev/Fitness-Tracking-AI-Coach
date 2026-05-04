@@ -91,39 +91,48 @@ export default function AdminUserListPage() {
     setRoleIntent({ user, nextRole, step })
   }
 
-  function handleRoleConfirm() {
+  function handleRoleConfirm(adminPassword?: string) {
     if (!roleIntent) return
     const { user, nextRole, step } = roleIntent
     if (needsDoubleRoleConfirm(user.role?.name, nextRole) && step === 1) {
       setRoleIntent({ user, nextRole, step: 2 })
       return
     }
+    const pwd = adminPassword?.trim()
+    if (!pwd) return
     updateRole.mutate(
-      { id: user.id, role: nextRole },
+      { id: user.id, role: nextRole, adminPassword: pwd },
       { onSettled: () => setRoleIntent(null) },
     )
   }
 
-  function handleStatusConfirm() {
+  function handleStatusConfirm(adminPassword: string) {
     if (!statusIntent) return
+    const pwd = adminPassword.trim()
+    if (!pwd) return
     updateStatus.mutate(
-      { id: statusIntent.user.id, status: statusIntent.next },
+      { id: statusIntent.user.id, status: statusIntent.next, adminPassword: pwd },
       { onSettled: () => setStatusIntent(null) },
     )
   }
 
-  function handleResetConfirm() {
+  function handleResetConfirm(adminPassword: string) {
     if (!resetUser) return
-    resetPassword.mutate(resetUser.id, {
-      onSuccess: (res) => {
-        setResetUser(null)
-        setResetResult({
-          temporaryPassword: res.temporaryPassword,
-          userLabel: res.user.name || res.user.email,
-          email: res.user.email,
-        })
+    const pwd = adminPassword.trim()
+    if (!pwd) return
+    resetPassword.mutate(
+      { id: resetUser.id, adminPassword: pwd },
+      {
+        onSuccess: (res) => {
+          setResetUser(null)
+          setResetResult({
+            temporaryPassword: res.temporaryPassword,
+            userLabel: res.user.name || res.user.email,
+            email: res.user.email,
+          })
+        },
       },
-    })
+    )
   }
 
   const columns: Column<AdminUser>[] = [

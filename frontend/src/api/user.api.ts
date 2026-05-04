@@ -1,6 +1,8 @@
 import { apiClient } from './axios'
 import type { UserResponse, UpdateUserPayload } from '@/types/auth.types'
 import type {
+  AdminUserAuditListParams,
+  AdminUserAuditListResponse,
   AdminUserListParams,
   AdminUserListResponse,
   AdminUserResponse,
@@ -34,10 +36,11 @@ export const userApi = {
   updateAdminUserStatus: async (
     id: number,
     status: 'active' | 'locked',
+    adminPassword: string,
   ): Promise<AdminUserResponse> => {
     const { data } = await apiClient.patch<AdminUserResponse>(
       `/user/admin/users/${id}/status`,
-      { status },
+      { status, adminPassword },
     )
     return data
   },
@@ -45,18 +48,38 @@ export const userApi = {
   updateAdminUserRole: async (
     id: number,
     role: 'ADMIN' | 'USER' | 'COACH',
+    adminPassword: string,
   ): Promise<AdminUserResponse> => {
     const { data } = await apiClient.patch<AdminUserResponse>(
       `/user/admin/users/${id}/role`,
-      { role },
+      { role, adminPassword },
     )
     return data
   },
 
-  resetAdminUserPassword: async (id: number): Promise<AdminResetPasswordResponse> => {
+  resetAdminUserPassword: async (
+    id: number,
+    adminPassword: string,
+  ): Promise<AdminResetPasswordResponse> => {
     const { data } = await apiClient.post<AdminResetPasswordResponse>(
       `/user/admin/users/${id}/reset-password`,
-      { confirm: true },
+      { confirm: true, adminPassword },
+    )
+    return data
+  },
+
+  getAdminUserAuditLogs: async (
+    id: number,
+    params?: AdminUserAuditListParams,
+  ): Promise<AdminUserAuditListResponse> => {
+    const { data } = await apiClient.get<AdminUserAuditListResponse>(
+      `/user/admin/users/${id}/audit`,
+      {
+        params: {
+          page: params?.page ?? 1,
+          limit: params?.limit ?? 20,
+        },
+      },
     )
     return data
   },

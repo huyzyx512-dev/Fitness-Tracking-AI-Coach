@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
@@ -17,17 +18,17 @@ export type RoleChangeIntent = {
 type AdminUserGovernanceModalsProps = {
   statusIntent: { user: AdminUser; next: AdminUserStatus } | null
   onCloseStatus: () => void
-  onConfirmStatus: () => void
+  onConfirmStatus: (adminPassword: string) => void
   statusLoading: boolean
 
   roleIntent: RoleChangeIntent | null
   onCloseRole: () => void
-  onConfirmRole: () => void
+  onConfirmRole: (adminPassword?: string) => void
   roleLoading: boolean
 
   resetUser: AdminUser | null
   onCloseReset: () => void
-  onConfirmReset: () => void
+  onConfirmReset: (adminPassword: string) => void
   resetLoading: boolean
 
   resetResult: { temporaryPassword: string; userLabel: string; email: string } | null
@@ -54,9 +55,35 @@ export function AdminUserGovernanceModals({
   resetResult,
   onCloseResetResult,
 }: AdminUserGovernanceModalsProps) {
+  const [adminPassword, setAdminPassword] = useState('')
+
+  useEffect(() => {
+    setAdminPassword('')
+  }, [
+    statusIntent?.user.id,
+    statusIntent?.next,
+    resetUser?.id,
+    roleIntent?.user.id,
+    roleIntent?.nextRole,
+    roleIntent?.step,
+  ])
+
   const roleDouble =
     roleIntent != null &&
     needsDoubleRoleConfirm(roleIntent.user.role?.name, roleIntent.nextRole)
+
+  const roleNeedsReauth = !roleDouble || (roleIntent != null && roleIntent.step === 2)
+
+  const passwordExtra = (
+    <Input
+      type="password"
+      label="Mật khẩu quản trị của bạn"
+      autoComplete="current-password"
+      value={adminPassword}
+      onChange={(e) => setAdminPassword(e.target.value)}
+      required
+    />
+  )
 
   const roleTitle = !roleIntent
     ? ''
@@ -79,7 +106,13 @@ export function AdminUserGovernanceModals({
       <ConfirmModal
         open={statusIntent !== null}
         onClose={onCloseStatus}
-        onConfirm={onConfirmStatus}
+        onConfirm={() => {
+          const pwd = adminPassword.trim()
+          if (!pwd) return
+          onConfirmStatus(pwd)
+        }}
+        extra={passwordExtra}
+        confirmDisabled={!adminPassword.trim()}
         title={statusIntent?.next === 'locked' ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?'}
         description={
           statusIntent
@@ -96,7 +129,19 @@ export function AdminUserGovernanceModals({
       <ConfirmModal
         open={roleIntent !== null}
         onClose={onCloseRole}
-        onConfirm={onConfirmRole}
+        onConfirm={() => {
+          if (!roleIntent) return
+          const double = needsDoubleRoleConfirm(roleIntent.user.role?.name, roleIntent.nextRole)
+          if (double && roleIntent.step === 1) {
+            onConfirmRole()
+            return
+          }
+          const pwd = adminPassword.trim()
+          if (!pwd) return
+          onConfirmRole(pwd)
+        }}
+        extra={roleIntent !== null && roleNeedsReauth ? passwordExtra : undefined}
+        confirmDisabled={roleIntent !== null && roleNeedsReauth && !adminPassword.trim()}
         title={roleTitle}
         description={roleDescription}
         confirmLabel={
@@ -113,7 +158,13 @@ export function AdminUserGovernanceModals({
       <ConfirmModal
         open={resetUser !== null}
         onClose={onCloseReset}
-        onConfirm={onConfirmReset}
+        onConfirm={() => {
+          const pwd = adminPassword.trim()
+          if (!pwd) return
+          onConfirmReset(pwd)
+        }}
+        extra={passwordExtra}
+        confirmDisabled={!adminPassword.trim()}
         title="Đặt lại mật khẩu?"
         description={
           resetUser
