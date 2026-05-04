@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout }    from '@/components/layout/AppLayout'
 import { AuthLayout }   from '@/components/layout/AuthLayout'
 import { ProtectedRoute } from './ProtectedRoute'
+import { RoleGuard } from './RoleGuard'
 import { FullPageSpinner } from '@/components/ui/Spinner'
 import { ROUTES } from '@/lib/constants'
 
@@ -20,6 +21,9 @@ const CreateExercisePage = lazy(() => import('@/pages/exercise/CreateExercisePag
 const EditExercisePage   = lazy(() => import('@/pages/exercise/EditExercisePage'))
 const LogsPage           = lazy(() => import('@/pages/logs/LogsPage'))
 const ProfilePage        = lazy(() => import('@/pages/ProfilePage'))
+const AdminUserListPage  = lazy(() => import('@/pages/admin/users/AdminUserListPage'))
+const AdminUserDetailPage = lazy(() => import('@/pages/admin/users/AdminUserDetailPage'))
+const AdminUserCreatePage = lazy(() => import('@/pages/admin/users/AdminUserCreatePage'))
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage'))
 const ForbiddenPage      = lazy(() => import('@/pages/ForbiddenPage'))
 const ServerErrorPage    = lazy(() => import('@/pages/ServerErrorPage'))
@@ -129,6 +133,28 @@ export const router = createBrowserRouter([
             path: ROUTES.PROFILE,
             element: withSuspense(<ProfilePage />),
             handle: { breadcrumb: 'Hồ sơ' },
+          },
+          
+          /* Admin users */
+          {
+            element: <RoleGuard roles={['ADMIN']} />,
+            children: [
+              {
+                path: ROUTES.ADMIN_USERS,
+                element: withSuspense(<AdminUserListPage />),
+                handle: { breadcrumb: 'Quản trị người dùng' },
+              },
+              {
+                path: ROUTES.ADMIN_USER_NEW,
+                element: withSuspense(<AdminUserCreatePage />),
+                handle: { breadcrumb: 'Tạo người dùng' },
+              },
+              {
+                path: ROUTES.ADMIN_USER_DETAIL_PATH,
+                element: withSuspense(<AdminUserDetailPage />),
+                handle: { breadcrumb: 'Chi tiết người dùng' },
+              },
+            ],
           },
         ],
       },
