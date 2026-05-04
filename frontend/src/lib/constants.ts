@@ -11,6 +11,7 @@ export const ROUTES = {
   EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
   PROFILE:         '/profile',
+  ADMIN_ROOT:      '/admin',
   ADMIN_USERS:     '/admin/users',
   ADMIN_USER_NEW:  '/admin/users/new',
   ADMIN_USER_DETAIL_PATH: '/admin/users/:id',

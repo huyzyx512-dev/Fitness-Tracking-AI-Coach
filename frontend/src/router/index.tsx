@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { AdminLayout }  from '@/components/layout/AdminLayout'
 import { AppLayout }    from '@/components/layout/AppLayout'
 import { AuthLayout }   from '@/components/layout/AuthLayout'
 import { ProtectedRoute } from './ProtectedRoute'
@@ -134,23 +135,31 @@ export const router = createBrowserRouter([
             element: withSuspense(<ProfilePage />),
             handle: { breadcrumb: 'Hồ sơ' },
           },
-          
-          /* Admin users */
+        ],
+      },
+
+      /* Admin shell (parallel to AppLayout) */
+      {
+        path: 'admin',
+        element: <RoleGuard roles={['ADMIN']} />,
+        handle: { breadcrumb: 'Quản trị' },
+        children: [
           {
-            element: <RoleGuard roles={['ADMIN']} />,
+            element: <AdminLayout />,
             children: [
+              { index: true, element: <Navigate to="users" replace /> },
               {
-                path: ROUTES.ADMIN_USERS,
+                path: 'users',
                 element: withSuspense(<AdminUserListPage />),
                 handle: { breadcrumb: 'Quản trị người dùng' },
               },
               {
-                path: ROUTES.ADMIN_USER_NEW,
+                path: 'users/new',
                 element: withSuspense(<AdminUserCreatePage />),
                 handle: { breadcrumb: 'Tạo người dùng' },
               },
               {
-                path: ROUTES.ADMIN_USER_DETAIL_PATH,
+                path: 'users/:id',
                 element: withSuspense(<AdminUserDetailPage />),
                 handle: { breadcrumb: 'Chi tiết người dùng' },
               },

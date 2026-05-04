@@ -1,7 +1,8 @@
-import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ROUTES } from '@/lib/constants'
+import { ROUTES, ROLE } from '@/lib/constants'
 import { useUIStore } from '@/store/ui.store'
+import { useAuthStore } from '@/store/auth.store'
 import { SidebarItem } from './SidebarItem'
 
 const NAV_ITEMS = [
@@ -18,6 +19,8 @@ interface SidebarProps {
 
 function Sidebar({ className }: SidebarProps) {
   const { sidebarOpen, setSidebarOpen } = useUIStore()
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role?.name === ROLE.ADMIN
 
   return (
     <>
@@ -77,6 +80,16 @@ function Sidebar({ className }: SidebarProps) {
               onClick={() => setSidebarOpen(false)}
             />
           ))}
+          {isAdmin && (
+            <div className="mt-3 space-y-1 border-t border-border pt-3">
+              <SidebarItem
+                to={ROUTES.ADMIN_USERS}
+                icon={<Shield size={18} />}
+                label="Quản trị"
+                onClick={() => setSidebarOpen(false)}
+              />
+            </div>
+          )}
         </nav>
 
         {/* Bottom branding */}
