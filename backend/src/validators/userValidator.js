@@ -32,3 +32,11 @@ export const adminResetPasswordSchema = z.object({
   }),
   adminPassword: adminPasswordField,
 });
+
+export const adminCreateUserSchema = z.object({
+  email: z.string().trim().email("Email không hợp lệ"),
+  name: z.string().trim().min(3, "Tên phải có ít nhất 3 ký tự"),
+  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+  role: z.enum(["ADMIN", "USER", "COACH"]),
+  adminPassword: adminPasswordField,
+});

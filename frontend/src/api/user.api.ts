@@ -1,6 +1,7 @@
 import { apiClient } from './axios'
 import type { UserResponse, UpdateUserPayload } from '@/types/auth.types'
 import type {
+  AdminCreateUserPayload,
   AdminUserAuditListParams,
   AdminUserAuditListResponse,
   AdminUserListParams,
@@ -30,6 +31,11 @@ export const userApi = {
         limit: params.limit ?? 10,
       },
     })
+    return data
+  },
+
+  createAdminUser: async (payload: AdminCreateUserPayload): Promise<AdminUserResponse> => {
+    const { data } = await apiClient.post<AdminUserResponse>('/user/admin/users', payload)
     return data
   },
 

@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<AdminAuditAction, string> = {
   USER_STATUS_CHANGED: 'Thay đổi trạng thái tài khoản',
   USER_ROLE_CHANGED: 'Thay đổi vai trò',
   USER_PASSWORD_RESET: 'Đặt lại mật khẩu',
+  USER_CREATED: 'Tạo tài khoản',
 }
 
 function isAuditAction(value: string): value is AdminAuditAction {
@@ -38,6 +39,10 @@ function describeMetadata(entry: AdminAuditLogEntry): string {
     }
     case 'USER_PASSWORD_RESET':
       return 'Thu hồi phiên đăng nhập'
+    case 'USER_CREATED': {
+      const r = typeof m.assignedRole === 'string' ? m.assignedRole : ''
+      return r ? `Vai trò: ${r}` : ''
+    }
     default:
       return ''
   }

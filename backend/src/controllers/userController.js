@@ -4,6 +4,7 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import db from "../models/index.js";
 import { parseSchema } from "../validators/common.js";
 import {
+  adminCreateUserSchema,
   adminResetPasswordSchema,
   adminRoleChangeSchema,
   adminStatusChangeSchema,
@@ -11,7 +12,7 @@ import {
 } from "../validators/userValidator.js";
 import { recordAdminAudit, ADMIN_AUDIT_ACTIONS } from "../services/adminAuditLogService.js";
 import { assertAdminPasswordReauth } from "../services/adminPasswordReauthService.js";
-import { ForbiddenError, NotFoundError, ValidationError } from "../errors/AppError.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../errors/AppError.js";
 import { Op } from "sequelize";
 import TokenService from "../services/tokenService.js";
 
@@ -144,6 +145,59 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
   return res.status(200).json({
     users,
     pagination: { page, limit, total: count },
+  });
+});
+
+export const createAdminUser = asyncHandler(async (req, res) => {
+  assertAdmin(req);
+
+  const { email, name, password, role: nextRole, adminPassword } = parseSchema(
+    adminCreateUserSchema,
+    req.body,
+  );
+  await assertAdminPasswordReauth(req.user.id, adminPassword);
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await db.User.findOne({ where: { email: normalizedEmail } });
+  if (existing) {
+    throw new ConflictError("Email đã được sử dụng");
+  }
+
+  const roleRecord = await db.Role.findOne({ where: { name: nextRole } });
+  if (!roleRecord) throw new NotFoundError("Không tìm thấy vai trò");
+
+  const password_hash = await bcrypt.hash(password, 10);
+
+  const newUser = await db.User.create({
+    email: normalizedEmail,
+    password_hash,
+    name: name.trim(),
+    role_id: roleRecord.id,
+    tokenVersion: 0,
+    weight: 70.0,
+    height: 170.0,
+    gender: "male",
+    date_of_birth: null,
+  });
+
+  await recordAdminAudit({
+    actorUserId: req.user.id,
+    targetUserId: newUser.id,
+    action: ADMIN_AUDIT_ACTIONS.USER_CREATED,
+    metadata: { assignedRole: nextRole, email: normalizedEmail },
+    req,
+  });
+
+  const created = await db.User.findOne({
+    where: { id: newUser.id },
+    attributes: { exclude: ["password_hash"] },
+    include: [{ model: db.Role, as: "role", attributes: ["id", "name"] }],
+  });
+
+  const plain = created.toJSON();
+  return res.status(201).json({
+    message: "Đã tạo tài khoản người dùng",
+    user: { ...plain, status: toStatusFromTokenVersion(plain.tokenVersion) },
   });
 });
 

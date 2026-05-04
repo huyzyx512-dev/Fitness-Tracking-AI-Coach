@@ -28,6 +28,14 @@ export interface AdminUserResponse {
   message?: string
 }
 
+export interface AdminCreateUserPayload {
+  email: string
+  name: string
+  password: string
+  role: 'ADMIN' | 'USER' | 'COACH'
+  adminPassword: string
+}
+
 export interface AdminResetPasswordResponse {
   user: AdminUser
   message?: string
@@ -38,6 +46,7 @@ export type AdminAuditAction =
   | 'USER_STATUS_CHANGED'
   | 'USER_ROLE_CHANGED'
   | 'USER_PASSWORD_RESET'
+  | 'USER_CREATED'
 
 export interface AdminAuditLogActor {
   id: number

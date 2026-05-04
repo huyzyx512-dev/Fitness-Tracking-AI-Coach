@@ -1,5 +1,6 @@
 import express from "express"
 import {
+  createAdminUser,
   getAdminUserAuditLogs,
   getAdminUsers,
   getUser,
@@ -26,6 +27,7 @@ router.get("/", authenticationToken ,getUser)
 // Update current user's profile (name, weight, height, gender, date_of_birth)
 router.patch("/", authenticationToken, updateUser)
 
+router.post("/admin/users", authenticationToken, requireAdmin, createAdminUser)
 router.get("/admin/users", authenticationToken, requireAdmin, getAdminUsers)
 router.get("/admin/users/:id/audit", authenticationToken, requireAdmin, getAdminUserAuditLogs)
 router.patch("/admin/users/:id/status", authenticationToken, requireAdmin, updateAdminUserStatus)
