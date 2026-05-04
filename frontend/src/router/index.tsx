@@ -25,6 +25,7 @@ const ProfilePage        = lazy(() => import('@/pages/ProfilePage'))
 const AdminUserListPage  = lazy(() => import('@/pages/admin/users/AdminUserListPage'))
 const AdminUserDetailPage = lazy(() => import('@/pages/admin/users/AdminUserDetailPage'))
 const AdminUserCreatePage = lazy(() => import('@/pages/admin/users/AdminUserCreatePage'))
+const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'))
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage'))
 const ForbiddenPage      = lazy(() => import('@/pages/ForbiddenPage'))
 const ServerErrorPage    = lazy(() => import('@/pages/ServerErrorPage'))
@@ -147,7 +148,11 @@ export const router = createBrowserRouter([
           {
             element: <AdminLayout />,
             children: [
-              { index: true, element: <Navigate to="users" replace /> },
+              {
+                index: true,
+                element: withSuspense(<AdminDashboardPage />),
+                handle: { breadcrumb: 'Tổng quan quản trị' },
+              },
               {
                 path: 'users',
                 element: withSuspense(<AdminUserListPage />),

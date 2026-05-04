@@ -1,10 +1,11 @@
-import { Shield, Users, LayoutDashboard, LayoutTemplate, X } from 'lucide-react'
+import { Shield, Users, UserPlus, LayoutDashboard, LayoutTemplate, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
 import { SidebarItem } from './SidebarItem'
 
 const ADMIN_NAV = [
   { to: ROUTES.ADMIN_USERS, label: 'Người dùng', icon: <Users size={18} />, end: false },
+  { to: ROUTES.ADMIN_USER_NEW, label: 'Tạo người dùng', icon: <UserPlus size={18} />, end: true },
   { to: ROUTES.ADMIN_ROOT, label: 'Tổng quan quản trị', icon: <LayoutTemplate size={18} />, end: true },
 ] as const
 
