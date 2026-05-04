@@ -42,6 +42,23 @@ const exerciseInclude = {
   ],
 };
 
+/** Created when workout completes; required: false so pending rows still load */
+const workoutLogInclude = {
+  model: db.WorkoutLog,
+  as: "log",
+  required: false,
+  attributes: [
+    "id",
+    "workout_id",
+    "duration_minutes",
+    "calories_burned",
+    "completed_at",
+    "comment",
+  ],
+};
+
+const workoutListIncludes = [exerciseInclude, workoutLogInclude];
+
 class WorkoutService {
   static async createWorkout(userId, payload) {
     return db.Workout.create({
@@ -67,7 +84,7 @@ class WorkoutService {
   static async getWorkout(userId, id) {
     const workout = await db.Workout.findOne({
       where: { id, user_id: userId },
-      include: [exerciseInclude],
+      include: workoutListIncludes,
       order: [[{ model: db.WorkoutExercise, as: "exercises" }, "order_index", "ASC"]],
     });
 
@@ -81,7 +98,7 @@ class WorkoutService {
   static async getWorkoutById(id, transaction) {
     return db.Workout.findOne({
       where: { id },
-      include: [exerciseInclude],
+      include: workoutListIncludes,
       order: [[{ model: db.WorkoutExercise, as: "exercises" }, "order_index", "ASC"]],
       transaction,
     });
@@ -90,7 +107,7 @@ class WorkoutService {
   static async getAll(userId) {
     return db.Workout.findAll({
       where: { user_id: userId },
-      include: [exerciseInclude],
+      include: workoutListIncludes,
       order: [
         ["createdAt", "ASC"],
         [{ model: db.WorkoutExercise, as: "exercises" }, "order_index", "ASC"],
