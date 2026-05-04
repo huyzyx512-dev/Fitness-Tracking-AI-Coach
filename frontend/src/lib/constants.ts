@@ -11,6 +11,10 @@ export const ROUTES = {
   EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
   PROFILE:         '/profile',
+  ADMIN_USERS:     '/admin/users',
+  ADMIN_USER_NEW:  '/admin/users/new',
+  ADMIN_USER_DETAIL_PATH: '/admin/users/:id',
+  ADMIN_USER_DETAIL: (id: number | string) => `/admin/users/${id}`,
   NOT_FOUND:       '/404',
   FORBIDDEN:       '/403',
   SERVER_ERROR:    '/500',
@@ -26,6 +30,10 @@ export const API_ENDPOINTS = {
 
   // User
   ME:              '/user',
+  ADMIN_USERS:     '/user/admin/users',
+  ADMIN_USER:      (id: number | string) => `/user/admin/users/${id}`,
+  ADMIN_USER_STATUS: (id: number | string) => `/user/admin/users/${id}/status`,
+  ADMIN_USER_ROLE:   (id: number | string) => `/user/admin/users/${id}/role`,
 
   // Workouts
   WORKOUTS:        '/workouts',
@@ -50,6 +58,8 @@ export const API_ENDPOINTS = {
 /* ─── TanStack Query Keys ────────────────────────────────── */
 export const QUERY_KEYS = {
   ME:           ['me'] as const,
+  ADMIN_USERS:  (params?: object) => params ? ['admin-users', params] : ['admin-users'],
+  ADMIN_USER:   (id: number | string) => ['admin-users', id] as const,
   WORKOUTS:     (params?: object) => params ? ['workouts', params] : ['workouts'],
   WORKOUT:      (id: number | string) => ['workouts', id] as const,
   EXERCISES:    (params?: object) => params ? ['exercises', params] : ['exercises'],
