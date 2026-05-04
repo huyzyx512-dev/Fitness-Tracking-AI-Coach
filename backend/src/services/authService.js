@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import db from "../models/index.js";
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
 } from "../errors/AppError.js";
@@ -63,6 +64,10 @@ class AuthService {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
+    }
+
+    if (Number(user.tokenVersion) < 0) {
+      throw new ForbiddenError("Tài khoản đã bị khóa");
     }
 
     const accessToken = TokenService.createAccessToken(user);
