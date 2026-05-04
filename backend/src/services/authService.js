@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import db from "../models/index.js";
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
 } from "../errors/AppError.js";
@@ -66,7 +67,9 @@ class AuthService {
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
-    authLog("login_ok", { userId: user.id });
+    if (Number(user.tokenVersion) < 0) {
+      throw new ForbiddenError("Tài khoản đã bị khóa");
+    }
 
     const accessToken = TokenService.createAccessToken(user);
     const refreshToken = await TokenService.createRefreshSession(user);
