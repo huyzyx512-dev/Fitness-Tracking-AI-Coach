@@ -12,7 +12,8 @@ import { ErrorState }    from '@/components/ui/ErrorState'
 import { useWorkoutList }   from '@/hooks/workout/useWorkoutList'
 import { useDeleteWorkout } from '@/hooks/workout/useDeleteWorkout'
 import { ROUTES, WORKOUT_STATUS_LABELS } from '@/lib/constants'
-import { formatDate, formatDuration } from '@/lib/utils'
+import { formatDate, formatDuration, computeWorkoutExerciseEnergyRows } from '@/lib/utils'
+import { useAuthStore } from '@/store/auth.store'
 import type { Column } from '@/components/ui/Table'
 import type { Workout } from '@/types/workout.types'
 import type { BadgeVariant } from '@/components/ui/Badge'
@@ -30,6 +31,7 @@ const STATUS_TABS = [
 
 export default function WorkoutListPage() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const [search,    setSearch]    = useState('')
   const [statusTab, setStatusTab] = useState('all')
   const [deleteId,  setDeleteId]  = useState<number | null>(null)
@@ -76,12 +78,26 @@ export default function WorkoutListPage() {
       render: (w) => <span className="text-muted text-sm">{formatDate(w.scheduled_at)}</span>,
     },
     {
-      key: 'log', header: 'Thời lượng',
-      render: (w) => (
-        <span className="text-muted text-sm">
-          {w.log ? formatDuration(w.log.duration_minutes) : '—'}
-        </span>
-      ),
+      key: 'log',
+      header: 'Thời lượng',
+      render: (w) => {
+        const energy = computeWorkoutExerciseEnergyRows(
+          w.exercises ?? [],
+          w.log ?? null,
+          user?.weight ?? 70,
+        )
+        if (energy.totalDurationMinutes <= 0) {
+          return <span className="text-muted text-sm">—</span>
+        }
+        return (
+          <span className="text-muted text-sm">
+            <span className="tabular-nums">{formatDuration(energy.totalDurationMinutes)}</span>
+            {!energy.isActualTotals && (
+              <span className="block text-[10px] text-subtle leading-tight mt-0.5">Ước tính</span>
+            )}
+          </span>
+        )
+      },
     },
     {
       key: 'actions', header: '', className: 'w-12 text-right',

@@ -2,6 +2,8 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns'
 import { vi } from 'date-fns/locale'
+import type { WorkoutExercise } from '@/types/workout.types'
+import type { WorkoutLog } from '@/types/workout-log.types'
 
 /** Merge Tailwind classes safely */
 export function cn(...inputs: ClassValue[]): string {
@@ -57,6 +59,114 @@ export function formatNumber(n: number | null | undefined): string {
 export function formatCalories(kcal: number | null | undefined): string {
   if (kcal == null) return '—'
   return `${formatNumber(kcal)} kcal`
+}
+
+/** Backend workout completion formula: (minutes × MET × 3.5 × weightKg) / 200 */
+export function estimateCaloriesBurnedMet(durationMinutes: number, met: number, weightKg: number): number {
+  if (durationMinutes <= 0 || met <= 0 || weightKg <= 0) return 0
+  return Math.round((durationMinutes * (met * 3.5 * weightKg)) / 200)
+}
+
+/** Rough active-block duration from sets / reps / rest (minutes, min 1 when sets > 0). */
+export function estimateExerciseBlockMinutes(sets: number, reps: number, restSeconds: number): number {
+  const s = Math.max(0, Math.floor(sets))
+  const r = Math.max(0, Math.floor(reps))
+  const rest = Math.max(0, Math.floor(restSeconds))
+  if (s <= 0) return 0
+  const secondsPerSet = Math.min(180, Math.max(15, 20 + r * 2.5))
+  const workSeconds = s * secondsPerSet
+  const restBetween = Math.max(0, s - 1) * rest
+  return Math.max(1, Math.ceil((workSeconds + restBetween) / 60))
+}
+
+/** Split `total` into integers proportional to weights (largest remainder); equal split if weights sum to 0. */
+export function proportionalIntSplit(total: number, weights: number[]): number[] {
+  const n = weights.length
+  if (n === 0) return []
+  const safe = weights.map((w) => Math.max(0, w))
+  const sum = safe.reduce((a, w) => a + w, 0)
+  if (total <= 0) return Array(n).fill(0)
+  if (sum <= 0) {
+    const base = Math.floor(total / n)
+    const out = Array(n).fill(base)
+    out[0] += total - base * n
+    return out
+  }
+
+  const exact = safe.map((w) => (total * w) / sum)
+  const base = exact.map((x) => Math.floor(x))
+  let remainder = total - base.reduce((a, b) => a + b, 0)
+  const order = exact.map((x, i) => ({ i, f: x - base[i] })).sort((a, b) => b.f - a.f)
+  const result = [...base]
+  for (let k = 0; k < remainder; k++) {
+    result[order[k].i] += 1
+  }
+  return result
+}
+
+/** Row-level duration/calories vs totals; totals from log when completed, else MET estimate. */
+export function computeWorkoutExerciseEnergyRows(
+  exercises: WorkoutExercise[],
+  log: WorkoutLog | null,
+  weightKg: number,
+): {
+  rowDurationMinutes: number[]
+  rowCalories: number[]
+  totalDurationMinutes: number
+  totalCalories: number
+  isActualTotals: boolean
+} {
+  if (exercises.length === 0) {
+    return {
+      rowDurationMinutes: [],
+      rowCalories: [],
+      totalDurationMinutes: log?.duration_minutes ?? 0,
+      totalCalories: log?.calories_burned ?? 0,
+      isActualTotals: !!log,
+    }
+  }
+
+  const weights = exercises.map((we) =>
+    estimateExerciseBlockMinutes(we.sets, we.reps, we.rest_time_seconds),
+  )
+  const sumW = weights.reduce((a, b) => a + b, 0)
+
+  let totalMet = 0
+  let nMet = 0
+  for (const we of exercises) {
+    const m = Number(we.exercise?.met_value)
+    if (Number.isFinite(m) && m > 0) {
+      totalMet += m
+      nMet += 1
+    }
+  }
+  const avgMet = nMet > 0 ? totalMet / nMet : 5
+
+  const isActualTotals = !!log
+  let totalDurationMinutes: number
+  let totalCalories: number
+
+  if (log) {
+    totalDurationMinutes = log.duration_minutes
+    totalCalories = log.calories_burned
+  } else {
+    totalDurationMinutes = sumW
+    totalCalories = estimateCaloriesBurnedMet(sumW, avgMet, weightKg)
+  }
+
+  const rowDurationMinutes = log
+    ? proportionalIntSplit(totalDurationMinutes, weights)
+    : weights.map((w) => Math.max(0, Math.round(w)))
+
+  const rowCalories = proportionalIntSplit(totalCalories, weights)
+
+  return {
+    rowDurationMinutes,
+    rowCalories,
+    totalDurationMinutes,
+    totalCalories,
+    isActualTotals,
+  }
 }
 
 /** Get initials from full name */

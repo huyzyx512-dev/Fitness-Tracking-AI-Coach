@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Activity, MoreHorizontal, Pencil, Trash2, Dumbbell } from 'lucide-react'
+import { Plus, Activity, MoreHorizontal, Pencil, Trash2, Dumbbell, Clock, Flame } from 'lucide-react'
 import { PageHeader }   from '@/components/layout/PageHeader'
 import { Button }       from '@/components/ui/Button'
 import { Badge }        from '@/components/ui/Badge'
@@ -15,6 +15,7 @@ import { useExerciseList }   from '@/hooks/exercise/useExerciseList'
 import { useDeleteExercise } from '@/hooks/exercise/useDeleteExercise'
 import { useAuthStore }  from '@/store/auth.store'
 import { ROUTES, DIFFICULTY_LABELS, ROLE } from '@/lib/constants'
+import { formatDuration, formatCalories, estimateCaloriesBurnedMet } from '@/lib/utils'
 import type { Exercise } from '@/types/exercise.types'
 import type { BadgeVariant } from '@/components/ui/Badge'
 
@@ -120,6 +121,7 @@ export default function ExerciseListPage() {
             <ExerciseCard
               key={ex.id}
               exercise={ex}
+              weightKg={user?.weight ?? 70}
               canEdit={isAdmin || ex.created_by === user?.id}
               onOpenDetail={() => navigate(ROUTES.EXERCISE_DETAIL(ex.id))}
               onEdit={() => navigate(`${ROUTES.EXERCISES}/${ex.id}/edit`)}
@@ -144,17 +146,30 @@ export default function ExerciseListPage() {
 
 function ExerciseCard({
   exercise,
+  weightKg,
   canEdit,
   onOpenDetail,
   onEdit,
   onDelete,
 }: {
   exercise: Exercise
+  weightKg: number
   canEdit: boolean
   onOpenDetail: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
+  const hasApiDuration =
+    exercise.duration_minutes != null && exercise.duration_minutes > 0
+  const hasApiCalories = exercise.calories_burned != null && exercise.calories_burned >= 0
+  const refDur = hasApiDuration ? exercise.duration_minutes! : 30
+  const met = Number(exercise.met_value)
+  const caloriesDisplay = hasApiCalories
+    ? exercise.calories_burned!
+    : estimateCaloriesBurnedMet(refDur, Number.isFinite(met) && met > 0 ? met : 3, weightKg)
+  const durationLabel = hasApiDuration ? formatDuration(exercise.duration_minutes) : `~${refDur} phút`
+  const showEstimateHint = !hasApiDuration || !hasApiCalories
+
   return (
     <div
       role="link"
@@ -210,6 +225,20 @@ function ExerciseCard({
         {exercise.muscleGroups?.slice(0, 2).map((mg) => (
           <Badge key={mg.id} variant="neutral">{mg.name}</Badge>
         ))}
+      </div>
+
+      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60 flex-wrap">
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted tabular-nums">
+          <Clock size={13} className="shrink-0 opacity-80" aria-hidden />
+          <span>{durationLabel}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted tabular-nums">
+          <Flame size={13} className="shrink-0 text-accent opacity-90" aria-hidden />
+          <span>{formatCalories(caloriesDisplay)}</span>
+        </span>
+        {showEstimateHint && (
+          <span className="text-[11px] text-subtle">Ước tính</span>
+        )}
       </div>
     </div>
   )
