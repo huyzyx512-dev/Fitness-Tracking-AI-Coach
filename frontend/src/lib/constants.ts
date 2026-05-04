@@ -34,6 +34,7 @@ export const API_ENDPOINTS = {
   ADMIN_USER:      (id: number | string) => `/user/admin/users/${id}`,
   ADMIN_USER_STATUS: (id: number | string) => `/user/admin/users/${id}/status`,
   ADMIN_USER_ROLE:   (id: number | string) => `/user/admin/users/${id}/role`,
+  ADMIN_USER_RESET_PASSWORD: (id: number | string) => `/user/admin/users/${id}/reset-password`,
 
   // Workouts
   WORKOUTS:        '/workouts',

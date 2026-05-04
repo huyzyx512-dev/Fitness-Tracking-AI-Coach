@@ -11,3 +11,9 @@ export const updateUserSchema = z
   .refine((payload) => Object.keys(payload).length > 0, { 
     message: "Vui lòng cập nhật ít nhất một thông tin" 
   });
+
+export const adminResetPasswordSchema = z.object({
+  confirm: z.boolean().refine((v) => v === true, {
+    message: "Gửi confirm: true để xác nhận đặt lại mật khẩu",
+  }),
+});

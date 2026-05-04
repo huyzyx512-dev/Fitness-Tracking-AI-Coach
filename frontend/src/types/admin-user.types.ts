@@ -27,3 +27,9 @@ export interface AdminUserResponse {
   user: AdminUser
   message?: string
 }
+
+export interface AdminResetPasswordResponse {
+  user: AdminUser
+  message?: string
+  temporaryPassword: string
+}

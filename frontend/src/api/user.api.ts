@@ -4,6 +4,7 @@ import type {
   AdminUserListParams,
   AdminUserListResponse,
   AdminUserResponse,
+  AdminResetPasswordResponse,
 } from '@/types/admin-user.types'
 
 export const userApi = {
@@ -48,6 +49,14 @@ export const userApi = {
     const { data } = await apiClient.patch<AdminUserResponse>(
       `/user/admin/users/${id}/role`,
       { role },
+    )
+    return data
+  },
+
+  resetAdminUserPassword: async (id: number): Promise<AdminResetPasswordResponse> => {
+    const { data } = await apiClient.post<AdminResetPasswordResponse>(
+      `/user/admin/users/${id}/reset-password`,
+      { confirm: true },
     )
     return data
   },

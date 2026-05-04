@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Lock, MoreHorizontal, ShieldCheck, Unlock, UserCog, Users } from 'lucide-react'
+import { KeyRound, Lock, MoreHorizontal, ShieldCheck, Unlock, UserCog, Users } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { SearchInput } from '@/components/ui/SearchInput'
@@ -13,12 +13,20 @@ import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { ROUTES, ROLE } from '@/lib/constants'
 import { formatDate } from '@/lib/utils'
+import { useAuthStore } from '@/store/auth.store'
 import { useAdminUserList } from '@/hooks/user/useAdminUserList'
 import { useUpdateAdminUserStatus } from '@/hooks/user/useUpdateAdminUserStatus'
 import { useUpdateAdminUserRole } from '@/hooks/user/useUpdateAdminUserRole'
+import { useResetAdminUserPassword } from '@/hooks/user/useResetAdminUserPassword'
 import type { AdminUser, AdminUserStatus } from '@/types/admin-user.types'
 import type { Column } from '@/components/ui/Table'
 import type { BadgeVariant } from '@/components/ui/Badge'
+import type { Role } from '@/types/auth.types'
+import { needsDoubleRoleConfirm } from './adminUserGovernance'
+import {
+  AdminUserGovernanceModals,
+  type RoleChangeIntent,
+} from './AdminUserGovernanceModals'
 
 const ROLE_OPTIONS = [
   { value: '', label: 'Tất cả vai trò' },
@@ -40,11 +48,25 @@ const statusVariant: Record<AdminUserStatus, BadgeVariant> = {
 
 export default function AdminUserListPage() {
   const navigate = useNavigate()
+  const currentUserId = useAuthStore((s) => s.user?.id)
+
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
+
+  const [statusIntent, setStatusIntent] = useState<{
+    user: AdminUser
+    next: AdminUserStatus
+  } | null>(null)
+  const [roleIntent, setRoleIntent] = useState<RoleChangeIntent | null>(null)
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null)
+  const [resetResult, setResetResult] = useState<{
+    temporaryPassword: string
+    userLabel: string
+    email: string
+  } | null>(null)
 
   const queryParams = useMemo(
     () => ({
@@ -60,6 +82,49 @@ export default function AdminUserListPage() {
   const { data, isLoading, error, refetch } = useAdminUserList(queryParams)
   const updateStatus = useUpdateAdminUserStatus()
   const updateRole = useUpdateAdminUserRole()
+  const resetPassword = useResetAdminUserPassword()
+
+  const isSelf = (u: AdminUser) => currentUserId != null && u.id === currentUserId
+
+  function openRoleChange(user: AdminUser, nextRole: Role['name']) {
+    const step = needsDoubleRoleConfirm(user.role?.name, nextRole) ? 1 : 2
+    setRoleIntent({ user, nextRole, step })
+  }
+
+  function handleRoleConfirm() {
+    if (!roleIntent) return
+    const { user, nextRole, step } = roleIntent
+    if (needsDoubleRoleConfirm(user.role?.name, nextRole) && step === 1) {
+      setRoleIntent({ user, nextRole, step: 2 })
+      return
+    }
+    updateRole.mutate(
+      { id: user.id, role: nextRole },
+      { onSettled: () => setRoleIntent(null) },
+    )
+  }
+
+  function handleStatusConfirm() {
+    if (!statusIntent) return
+    updateStatus.mutate(
+      { id: statusIntent.user.id, status: statusIntent.next },
+      { onSettled: () => setStatusIntent(null) },
+    )
+  }
+
+  function handleResetConfirm() {
+    if (!resetUser) return
+    resetPassword.mutate(resetUser.id, {
+      onSuccess: (res) => {
+        setResetUser(null)
+        setResetResult({
+          temporaryPassword: res.temporaryPassword,
+          userLabel: res.user.name || res.user.email,
+          email: res.user.email,
+        })
+      },
+    })
+  }
 
   const columns: Column<AdminUser>[] = [
     {
@@ -115,29 +180,36 @@ export default function AdminUserListPage() {
             {
               label: u.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
               icon: u.status === 'active' ? <Lock size={13} /> : <Unlock size={13} />,
+              disabled: isSelf(u),
               onClick: () =>
-                updateStatus.mutate({
-                  id: u.id,
-                  status: u.status === 'active' ? 'locked' : 'active',
+                setStatusIntent({
+                  user: u,
+                  next: u.status === 'active' ? 'locked' : 'active',
                 }),
+            },
+            {
+              label: 'Đặt lại mật khẩu',
+              icon: <KeyRound size={13} />,
+              disabled: isSelf(u),
+              onClick: () => setResetUser(u),
             },
             {
               label: 'Đổi sang COACH',
               icon: <UserCog size={13} />,
-              onClick: () => updateRole.mutate({ id: u.id, role: 'COACH' }),
-              disabled: u.role?.name === 'COACH',
+              onClick: () => openRoleChange(u, 'COACH'),
+              disabled: isSelf(u) || u.role?.name === 'COACH',
             },
             {
               label: 'Đổi sang USER',
               icon: <UserCog size={13} />,
-              onClick: () => updateRole.mutate({ id: u.id, role: 'USER' }),
-              disabled: u.role?.name === 'USER',
+              onClick: () => openRoleChange(u, 'USER'),
+              disabled: isSelf(u) || u.role?.name === 'USER',
             },
             {
               label: 'Đổi sang ADMIN',
               icon: <ShieldCheck size={13} />,
-              onClick: () => updateRole.mutate({ id: u.id, role: 'ADMIN' }),
-              disabled: u.role?.name === 'ADMIN',
+              onClick: () => openRoleChange(u, 'ADMIN'),
+              disabled: isSelf(u) || u.role?.name === 'ADMIN',
             },
           ]}
           align="right"
@@ -150,6 +222,23 @@ export default function AdminUserListPage() {
 
   return (
     <section className="space-y-5 animate-fade-up">
+      <AdminUserGovernanceModals
+        statusIntent={statusIntent}
+        onCloseStatus={() => setStatusIntent(null)}
+        onConfirmStatus={handleStatusConfirm}
+        statusLoading={updateStatus.isPending}
+        roleIntent={roleIntent}
+        onCloseRole={() => setRoleIntent(null)}
+        onConfirmRole={handleRoleConfirm}
+        roleLoading={updateRole.isPending}
+        resetUser={resetUser}
+        onCloseReset={() => setResetUser(null)}
+        onConfirmReset={handleResetConfirm}
+        resetLoading={resetPassword.isPending}
+        resetResult={resetResult}
+        onCloseResetResult={() => setResetResult(null)}
+      />
+
       <PageHeader
         title="QUẢN TRỊ NGƯỜI DÙNG"
         description="Quản lý tài khoản với tìm kiếm, lọc và hành động nhanh theo vai trò/trạng thái."
