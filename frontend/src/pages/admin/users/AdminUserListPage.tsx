@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { KeyRound, Lock, MoreHorizontal, ShieldCheck, Unlock, UserCog, Users } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Dropdown } from '@/components/ui/Dropdown'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { ROUTES, ROLE } from '@/lib/constants'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -18,6 +19,8 @@ import { useAdminUserList } from '@/hooks/user/useAdminUserList'
 import { useUpdateAdminUserStatus } from '@/hooks/user/useUpdateAdminUserStatus'
 import { useUpdateAdminUserRole } from '@/hooks/user/useUpdateAdminUserRole'
 import { useResetAdminUserPassword } from '@/hooks/user/useResetAdminUserPassword'
+import { useUpdateAdminUsersBulkRole } from '@/hooks/user/useUpdateAdminUsersBulkRole'
+import { useUpdateAdminUsersBulkStatus } from '@/hooks/user/useUpdateAdminUsersBulkStatus'
 import type { AdminUser, AdminUserStatus } from '@/types/admin-user.types'
 import type { Column } from '@/components/ui/Table'
 import type { BadgeVariant } from '@/components/ui/Badge'
@@ -25,6 +28,8 @@ import type { Role } from '@/types/auth.types'
 import { needsDoubleRoleConfirm } from './adminUserGovernance'
 import {
   AdminUserGovernanceModals,
+  type BulkRoleIntent,
+  type BulkStatusIntent,
   type RoleChangeIntent,
 } from './AdminUserGovernanceModals'
 
@@ -55,12 +60,17 @@ export default function AdminUserListPage() {
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
+  const [sortBy, setSortBy] = useState<'createdAt' | 'name' | 'email' | 'lastLoginAt'>('createdAt')
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
 
   const [statusIntent, setStatusIntent] = useState<{
     user: AdminUser
     next: AdminUserStatus
   } | null>(null)
+  const [bulkStatusIntent, setBulkStatusIntent] = useState<BulkStatusIntent | null>(null)
   const [roleIntent, setRoleIntent] = useState<RoleChangeIntent | null>(null)
+  const [bulkRoleIntent, setBulkRoleIntent] = useState<BulkRoleIntent | null>(null)
   const [resetUser, setResetUser] = useState<AdminUser | null>(null)
   const [resetResult, setResetResult] = useState<{
     temporaryPassword: string
@@ -75,16 +85,33 @@ export default function AdminUserListPage() {
       status: status as '' | AdminUserStatus,
       page,
       limit,
+      sortBy,
+      order,
     }),
-    [search, role, status, page, limit],
+    [search, role, status, page, limit, sortBy, order],
   )
 
   const { data, isLoading, error, refetch } = useAdminUserList(queryParams)
   const updateStatus = useUpdateAdminUserStatus()
   const updateRole = useUpdateAdminUserRole()
   const resetPassword = useResetAdminUserPassword()
+  const updateBulkStatus = useUpdateAdminUsersBulkStatus()
+  const updateBulkRole = useUpdateAdminUsersBulkRole()
 
   const isSelf = (u: AdminUser) => currentUserId != null && u.id === currentUserId
+  const users = data?.users ?? []
+  const selectableUsers = useMemo(() => users.filter((u) => !isSelf(u)), [users, currentUserId])
+  const selectedUsers = useMemo(
+    () => selectableUsers.filter((u) => selectedUserIds.includes(u.id)),
+    [selectableUsers, selectedUserIds],
+  )
+  const allSelectableChecked =
+    selectableUsers.length > 0 && selectedUsers.length === selectableUsers.length
+
+  useEffect(() => {
+    const validIds = new Set(selectableUsers.map((u) => u.id))
+    setSelectedUserIds((prev) => prev.filter((id) => validIds.has(id)))
+  }, [selectableUsers])
 
   function openRoleChange(user: AdminUser, nextRole: Role['name']) {
     const step = needsDoubleRoleConfirm(user.role?.name, nextRole) ? 1 : 2
@@ -116,6 +143,18 @@ export default function AdminUserListPage() {
     )
   }
 
+  function handleBulkStatusConfirm(userIds: number[], adminPassword: string) {
+    const pwd = adminPassword.trim()
+    if (!pwd || userIds.length === 0 || !bulkStatusIntent) return
+    updateBulkStatus.mutate(
+      { userIds, status: bulkStatusIntent.next, adminPassword: pwd },
+      {
+        onSettled: () => setBulkStatusIntent(null),
+        onSuccess: () => setSelectedUserIds([]),
+      },
+    )
+  }
+
   function handleResetConfirm(adminPassword: string) {
     if (!resetUser) return
     const pwd = adminPassword.trim()
@@ -135,10 +174,67 @@ export default function AdminUserListPage() {
     )
   }
 
+  function handleBulkRoleConfirm(userIds: number[], adminPassword?: string) {
+    if (!bulkRoleIntent || userIds.length === 0) return
+    if (
+      bulkRoleIntent.step === 1 &&
+      selectedUsers.some((u) => needsDoubleRoleConfirm(u.role?.name, bulkRoleIntent.nextRole))
+    ) {
+      setBulkRoleIntent({ ...bulkRoleIntent, step: 2 })
+      return
+    }
+    const pwd = adminPassword?.trim()
+    if (!pwd) return
+    updateBulkRole.mutate(
+      { userIds, role: bulkRoleIntent.nextRole, adminPassword: pwd },
+      {
+        onSettled: () => setBulkRoleIntent(null),
+        onSuccess: () => setSelectedUserIds([]),
+      },
+    )
+  }
+
+  function toggleSelectUser(userId: number) {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    )
+  }
+
+  function toggleSelectAll() {
+    if (allSelectableChecked) {
+      setSelectedUserIds([])
+      return
+    }
+    setSelectedUserIds(selectableUsers.map((u) => u.id))
+  }
+
+  function openBulkRoleChange(nextRole: Role['name']) {
+    if (selectedUsers.length === 0) return
+    const step = selectedUsers.some((u) => needsDoubleRoleConfirm(u.role?.name, nextRole)) ? 1 : 2
+    setBulkRoleIntent({ users: selectedUsers, nextRole, step })
+  }
+
   const columns: Column<AdminUser>[] = [
+    {
+      key: 'select',
+      header: '',
+      className: 'w-12',
+      headerClassName: 'w-12',
+      render: (u) =>
+        isSelf(u) ? null : (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              aria-label={`Chọn ${u.name || u.email}`}
+              checked={selectedUserIds.includes(u.id)}
+              onChange={() => toggleSelectUser(u.id)}
+            />
+          </div>
+        ),
+    },
     {
       key: 'name',
       header: 'Người dùng',
+      sortable: true,
       render: (u) => (
         <div>
           <p className="font-medium text-foreground">{u.name || 'Chưa cập nhật'}</p>
@@ -167,7 +263,16 @@ export default function AdminUserListPage() {
     {
       key: 'createdAt',
       header: 'Ngày tạo',
+      sortable: true,
       render: (u) => <span className="text-muted">{formatDate(u.createdAt)}</span>,
+    },
+    {
+      key: 'lastLoginAt',
+      header: 'Đăng nhập gần nhất',
+      sortable: true,
+      render: (u) => (
+        <span className="text-muted">{u.lastLoginAt ? formatDate(u.lastLoginAt) : 'Chưa đăng nhập'}</span>
+      ),
     },
     {
       key: 'actions',
@@ -176,7 +281,12 @@ export default function AdminUserListPage() {
       render: (u) => (
         <Dropdown
           trigger={
-            <Button variant="ghost" size="icon" aria-label="Hành động nhanh">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Hành động nhanh"
+              onClick={(e) => e.stopPropagation()}
+            >
               <MoreHorizontal size={15} />
             </Button>
           }
@@ -236,10 +346,18 @@ export default function AdminUserListPage() {
         onCloseStatus={() => setStatusIntent(null)}
         onConfirmStatus={handleStatusConfirm}
         statusLoading={updateStatus.isPending}
+        bulkStatusIntent={bulkStatusIntent}
+        onCloseBulkStatus={() => setBulkStatusIntent(null)}
+        onConfirmBulkStatus={handleBulkStatusConfirm}
+        bulkStatusLoading={updateBulkStatus.isPending}
         roleIntent={roleIntent}
         onCloseRole={() => setRoleIntent(null)}
         onConfirmRole={handleRoleConfirm}
         roleLoading={updateRole.isPending}
+        bulkRoleIntent={bulkRoleIntent}
+        onCloseBulkRole={() => setBulkRoleIntent(null)}
+        onConfirmBulkRole={handleBulkRoleConfirm}
+        bulkRoleLoading={updateBulkRole.isPending}
         resetUser={resetUser}
         onCloseReset={() => setResetUser(null)}
         onConfirmReset={handleResetConfirm}
@@ -286,14 +404,82 @@ export default function AdminUserListPage() {
           />
         </div>
 
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-surface px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                aria-label="Chọn tất cả người dùng trong trang"
+                checked={allSelectableChecked}
+                onChange={toggleSelectAll}
+                disabled={selectableUsers.length === 0}
+              />
+            </div>
+            <span className="text-sm text-muted">
+              Đã chọn {selectedUsers.length}/{selectableUsers.length}
+            </span>
+          </div>
+          <div className="h-5 w-px bg-border/80" />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={selectedUsers.length === 0}
+              onClick={() => setBulkStatusIntent({ users: selectedUsers, next: 'locked' })}
+            >
+              Khóa hàng loạt
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={selectedUsers.length === 0}
+              onClick={() => setBulkStatusIntent({ users: selectedUsers, next: 'active' })}
+            >
+              Mở khóa hàng loạt
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selectedUsers.length === 0}
+              onClick={() => openBulkRoleChange('COACH')}
+            >
+              Đổi sang COACH
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selectedUsers.length === 0}
+              onClick={() => openBulkRoleChange('USER')}
+            >
+              Đổi sang USER
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selectedUsers.length === 0}
+              onClick={() => openBulkRoleChange('ADMIN')}
+            >
+              Đổi sang ADMIN
+            </Button>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border overflow-hidden bg-card">
           <Table
             columns={columns}
-            data={data?.users ?? []}
+            data={users}
             keyExtractor={(u) => u.id}
             isLoading={isLoading}
             emptyTitle="Không tìm thấy người dùng"
             emptyDesc="Thử đổi bộ lọc hoặc từ khóa tìm kiếm."
+            onSort={(key, dir) => {
+              if (key === 'name' || key === 'createdAt' || key === 'lastLoginAt' || key === 'email') {
+                setSortBy(key)
+                setOrder(dir)
+                setPage(1)
+              }
+            }}
+            sortKey={sortBy}
+            sortDir={order}
             onRowClick={(u) => navigate(ROUTES.ADMIN_USER_DETAIL(u.id))}
           />
         </div>

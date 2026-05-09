@@ -26,6 +26,26 @@ export const adminRoleChangeSchema = z.object({
   adminPassword: adminPasswordField,
 });
 
+// Danh sách userId hàng loạt
+const bulkUserIdsField = z
+  .array(z.coerce.number().int().positive("ID người dùng không hợp lệ"))
+  .min(1, "Danh sách userIds không được để trống")
+  .max(200, "Chỉ hỗ trợ tối đa 200 người dùng mỗi lần");
+
+// Cập nhật trạng thái người dùng hàng loạt bằng admin password
+export const adminBulkStatusChangeSchema = z.object({
+  userIds: bulkUserIdsField,
+  status: z.enum(["active", "locked"]),
+  adminPassword: adminPasswordField,
+});
+
+// Cập nhật vai trò người dùng hàng loạt bằng admin password
+export const adminBulkRoleChangeSchema = z.object({
+  userIds: bulkUserIdsField,
+  role: z.enum(["ADMIN", "USER", "COACH"]),
+  adminPassword: adminPasswordField,
+});
+
 export const adminResetPasswordSchema = z.object({
   confirm: z.boolean().refine((v) => v === true, {
     message: "Gửi confirm: true để xác nhận đặt lại mật khẩu",

@@ -4,6 +4,7 @@ export type AdminUserStatus = 'active' | 'locked'
 
 export interface AdminUser extends User {
   status: AdminUserStatus
+  lastLoginAt: string | null
 }
 
 export interface AdminUserListParams {
@@ -12,6 +13,8 @@ export interface AdminUserListParams {
   status?: AdminUserStatus | ''
   page?: number
   limit?: number
+  sortBy?: 'createdAt' | 'name' | 'email' | 'lastLoginAt'
+  order?: 'asc' | 'desc'
 }
 
 export interface AdminUserListResponse {
@@ -42,12 +45,23 @@ export interface AdminResetPasswordResponse {
   temporaryPassword: string
 }
 
+export interface AdminForceLogoutResponse {
+  message: string
+}
+
+export interface AdminBulkActionResult {
+  message: string
+  succeeded: number[]
+  failed: Array<{ id: number; reason: string }>
+}
+
 export type AdminAuditAction =
   | 'USER_STATUS_CHANGED'
   | 'USER_ROLE_CHANGED'
   | 'USER_PASSWORD_RESET'
   | 'USER_CREATED'
   | 'USER_LOGIN'
+  | 'USER_FORCE_LOGOUT'
 
 export interface AdminAuditLogActor {
   id: number

@@ -15,16 +15,35 @@ export type RoleChangeIntent = {
   step: 1 | 2
 }
 
+export type BulkStatusIntent = {
+  users: AdminUser[]
+  next: AdminUserStatus
+}
+
+export type BulkRoleIntent = {
+  users: AdminUser[]
+  nextRole: Role['name']
+  step: 1 | 2
+}
+
 type AdminUserGovernanceModalsProps = {
   statusIntent: { user: AdminUser; next: AdminUserStatus } | null
   onCloseStatus: () => void
   onConfirmStatus: (adminPassword: string) => void
   statusLoading: boolean
+  bulkStatusIntent?: BulkStatusIntent | null
+  onCloseBulkStatus?: () => void
+  onConfirmBulkStatus?: (userIds: number[], adminPassword: string) => void
+  bulkStatusLoading?: boolean
 
   roleIntent: RoleChangeIntent | null
   onCloseRole: () => void
   onConfirmRole: (adminPassword?: string) => void
   roleLoading: boolean
+  bulkRoleIntent?: BulkRoleIntent | null
+  onCloseBulkRole?: () => void
+  onConfirmBulkRole?: (userIds: number[], adminPassword?: string) => void
+  bulkRoleLoading?: boolean
 
   resetUser: AdminUser | null
   onCloseReset: () => void
@@ -44,10 +63,18 @@ export function AdminUserGovernanceModals({
   onCloseStatus,
   onConfirmStatus,
   statusLoading,
+  bulkStatusIntent = null,
+  onCloseBulkStatus,
+  onConfirmBulkStatus,
+  bulkStatusLoading = false,
   roleIntent,
   onCloseRole,
   onConfirmRole,
   roleLoading,
+  bulkRoleIntent = null,
+  onCloseBulkRole,
+  onConfirmBulkRole,
+  bulkRoleLoading = false,
   resetUser,
   onCloseReset,
   onConfirmReset,
@@ -62,10 +89,15 @@ export function AdminUserGovernanceModals({
   }, [
     statusIntent?.user.id,
     statusIntent?.next,
+    bulkStatusIntent?.next,
+    bulkStatusIntent?.users.map((u) => u.id).join(','),
     resetUser?.id,
     roleIntent?.user.id,
     roleIntent?.nextRole,
     roleIntent?.step,
+    bulkRoleIntent?.nextRole,
+    bulkRoleIntent?.step,
+    bulkRoleIntent?.users.map((u) => u.id).join(','),
   ])
 
   const roleDouble =
@@ -73,6 +105,11 @@ export function AdminUserGovernanceModals({
     needsDoubleRoleConfirm(roleIntent.user.role?.name, roleIntent.nextRole)
 
   const roleNeedsReauth = !roleDouble || (roleIntent != null && roleIntent.step === 2)
+  const bulkRoleDouble =
+    bulkRoleIntent != null &&
+    bulkRoleIntent.users.some((u) => needsDoubleRoleConfirm(u.role?.name, bulkRoleIntent.nextRole))
+
+  const bulkRoleNeedsReauth = !bulkRoleDouble || (bulkRoleIntent != null && bulkRoleIntent.step === 2)
 
   const passwordExtra = (
     <Input
@@ -127,6 +164,37 @@ export function AdminUserGovernanceModals({
       />
 
       <ConfirmModal
+        open={bulkStatusIntent !== null}
+        onClose={() => onCloseBulkStatus?.()}
+        onConfirm={() => {
+          if (!bulkStatusIntent || !onConfirmBulkStatus) return
+          const pwd = adminPassword.trim()
+          if (!pwd) return
+          onConfirmBulkStatus(
+            bulkStatusIntent.users.map((u) => u.id),
+            pwd,
+          )
+        }}
+        extra={passwordExtra}
+        confirmDisabled={!adminPassword.trim()}
+        title={
+          bulkStatusIntent?.next === 'locked'
+            ? `Khóa ${bulkStatusIntent.users.length} tài khoản?`
+            : `Mở khóa ${bulkStatusIntent?.users.length ?? 0} tài khoản?`
+        }
+        description={
+          bulkStatusIntent
+            ? bulkStatusIntent.next === 'locked'
+              ? 'Những tài khoản được chọn sẽ không thể đăng nhập cho đến khi được mở khóa.'
+              : 'Những tài khoản được chọn sẽ có thể đăng nhập lại.'
+            : ''
+        }
+        confirmLabel={bulkStatusIntent?.next === 'locked' ? 'Khóa hàng loạt' : 'Mở khóa hàng loạt'}
+        variant={bulkStatusIntent?.next === 'locked' ? 'danger' : 'warning'}
+        isLoading={bulkStatusLoading}
+      />
+
+      <ConfirmModal
         open={roleIntent !== null}
         onClose={onCloseRole}
         onConfirm={() => {
@@ -153,6 +221,53 @@ export function AdminUserGovernanceModals({
         }
         variant="warning"
         isLoading={roleLoading}
+      />
+
+      <ConfirmModal
+        open={bulkRoleIntent !== null}
+        onClose={() => onCloseBulkRole?.()}
+        onConfirm={() => {
+          if (!bulkRoleIntent || !onConfirmBulkRole) return
+          if (bulkRoleDouble && bulkRoleIntent.step === 1) {
+            onConfirmBulkRole(bulkRoleIntent.users.map((u) => u.id))
+            return
+          }
+          const pwd = adminPassword.trim()
+          if (!pwd) return
+          onConfirmBulkRole(
+            bulkRoleIntent.users.map((u) => u.id),
+            pwd,
+          )
+        }}
+        extra={bulkRoleIntent !== null && bulkRoleNeedsReauth ? passwordExtra : undefined}
+        confirmDisabled={bulkRoleIntent !== null && bulkRoleNeedsReauth && !adminPassword.trim()}
+        title={
+          !bulkRoleIntent
+            ? ''
+            : !bulkRoleDouble
+              ? `Đổi vai trò cho ${bulkRoleIntent.users.length} tài khoản`
+              : bulkRoleIntent.step === 2
+                ? 'Xác nhận đổi vai trò hàng loạt (bước 2/2)'
+                : 'Xác nhận đổi vai trò hàng loạt (bước 1/2)'
+        }
+        description={
+          !bulkRoleIntent
+            ? ''
+            : !bulkRoleDouble
+              ? `Gán vai trò ${roleLabel(bulkRoleIntent.nextRole)} cho ${bulkRoleIntent.users.length} tài khoản đã chọn.`
+              : bulkRoleIntent.step === 2
+                ? `Thao tác sẽ gán vai trò ${roleLabel(bulkRoleIntent.nextRole)} cho ${bulkRoleIntent.users.length} tài khoản. Nhấn Xác nhận để hoàn tất.`
+                : `Bạn sắp thay đổi vai trò của ${bulkRoleIntent.users.length} tài khoản. Nhấn Tiếp tục để xác nhận bước cuối.`
+        }
+        confirmLabel={
+          bulkRoleIntent && bulkRoleDouble
+            ? bulkRoleIntent.step === 2
+              ? 'Xác nhận'
+              : 'Tiếp tục'
+            : 'Xác nhận'
+        }
+        variant="warning"
+        isLoading={bulkRoleLoading}
       />
 
       <ConfirmModal

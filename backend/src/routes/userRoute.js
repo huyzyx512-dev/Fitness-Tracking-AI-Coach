@@ -1,10 +1,14 @@
 import express from "express"
 import {
   createAdminUser,
+  forceLogoutAdminUser,
+  getAdminUserById,
   getAdminUserAuditLogs,
   getAdminUsers,
   getUser,
   resetAdminUserPassword,
+  updateAdminUsersBulkRole,
+  updateAdminUsersBulkStatus,
   updateAdminUserRole,
   updateAdminUserStatus,
   updateUser,
@@ -29,9 +33,13 @@ router.patch("/", authenticationToken, updateUser)
 
 router.post("/admin/users", authenticationToken, requireAdmin, createAdminUser)
 router.get("/admin/users", authenticationToken, requireAdmin, getAdminUsers)
+router.get("/admin/users/:id", authenticationToken, requireAdmin, getAdminUserById)
 router.get("/admin/users/:id/audit", authenticationToken, requireAdmin, getAdminUserAuditLogs)
 router.patch("/admin/users/:id/status", authenticationToken, requireAdmin, updateAdminUserStatus)
 router.patch("/admin/users/:id/role", authenticationToken, requireAdmin, updateAdminUserRole)
+router.patch("/admin/users/bulk-status", authenticationToken, requireAdmin, updateAdminUsersBulkStatus)
+router.patch("/admin/users/bulk-role", authenticationToken, requireAdmin, updateAdminUsersBulkRole)
 router.post("/admin/users/:id/reset-password", authenticationToken, requireAdmin, resetAdminUserPassword)
+router.post("/admin/users/:id/force-logout", authenticationToken, requireAdmin, forceLogoutAdminUser)
 
 export default router

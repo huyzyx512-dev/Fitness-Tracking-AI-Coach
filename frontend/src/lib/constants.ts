@@ -35,7 +35,10 @@ export const API_ENDPOINTS = {
   ADMIN_USER:      (id: number | string) => `/user/admin/users/${id}`,
   ADMIN_USER_STATUS: (id: number | string) => `/user/admin/users/${id}/status`,
   ADMIN_USER_ROLE:   (id: number | string) => `/user/admin/users/${id}/role`,
+  ADMIN_USERS_BULK_STATUS: '/user/admin/users/bulk-status',
+  ADMIN_USERS_BULK_ROLE: '/user/admin/users/bulk-role',
   ADMIN_USER_RESET_PASSWORD: (id: number | string) => `/user/admin/users/${id}/reset-password`,
+  ADMIN_USER_FORCE_LOGOUT: (id: number | string) => `/user/admin/users/${id}/force-logout`,
   ADMIN_USER_AUDIT: (id: number | string) => `/user/admin/users/${id}/audit`,
 
   // Workouts
