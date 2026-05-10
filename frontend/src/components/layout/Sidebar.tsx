@@ -1,4 +1,4 @@
-import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap, Shield } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap, Shield, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES, ROLE } from '@/lib/constants'
 import { useUIStore } from '@/store/ui.store'
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: ROUTES.WORKOUTS,   label: 'Buổi tập',     icon: <Dumbbell       size={18} /> },
   { to: ROUTES.EXERCISES,  label: 'Bài tập',      icon: <Activity       size={18} /> },
   { to: ROUTES.LOGS,       label: 'Nhật ký',      icon: <ClipboardList  size={18} /> },
+  { to: ROUTES.BILLING,    label: 'Gói đăng ký',  icon: <Sparkles       size={18} /> },
   { to: ROUTES.PROFILE,    label: 'Hồ sơ',        icon: <User           size={18} /> },
 ]
 

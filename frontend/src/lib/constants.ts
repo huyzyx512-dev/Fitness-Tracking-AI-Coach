@@ -11,6 +11,8 @@ export const ROUTES = {
   EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
   PROFILE:         '/profile',
+  BILLING:         '/billing',
+  BILLING_ORDER:   (id: number | string) => `/billing/orders/${id}`,
   ADMIN_ROOT:      '/admin',
   ADMIN_USERS:     '/admin/users',
   ADMIN_USER_NEW:  '/admin/users/new',
@@ -59,6 +61,12 @@ export const API_ENDPOINTS = {
 
   // Workout Logs
   WORKOUT_LOGS:    '/workout-logs',
+
+  // Billing
+  BILLING_PLANS:        '/billing/plans',
+  BILLING_SUBSCRIPTION: '/billing/subscription',
+  BILLING_ORDERS:       '/billing/orders',
+  BILLING_ORDER:        (id: number | string) => `/billing/orders/${id}`,
 } as const
 
 /* ─── TanStack Query Keys ────────────────────────────────── */
@@ -73,6 +81,9 @@ export const QUERY_KEYS = {
   EXERCISES:    (params?: object) => params ? ['exercises', params] : ['exercises'],
   EXERCISE:     (id: number | string) => ['exercises', id] as const,
   WORKOUT_LOGS: (params?: object) => params ? ['workout-logs', params] : ['workout-logs'],
+  BILLING_PLANS:        ['billing', 'plans'] as const,
+  BILLING_SUBSCRIPTION: ['billing', 'subscription'] as const,
+  BILLING_ORDER:        (id: number | string) => ['billing', 'orders', id] as const,
 } as const
 
 /* ─── Domain Enums ───────────────────────────────────────── */

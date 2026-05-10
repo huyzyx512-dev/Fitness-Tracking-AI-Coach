@@ -22,6 +22,8 @@ const CreateExercisePage = lazy(() => import('@/pages/exercise/CreateExercisePag
 const EditExercisePage   = lazy(() => import('@/pages/exercise/EditExercisePage'))
 const LogsPage           = lazy(() => import('@/pages/logs/LogsPage'))
 const ProfilePage        = lazy(() => import('@/pages/ProfilePage'))
+const BillingPage        = lazy(() => import('@/pages/billing/BillingPage'))
+const BillingOrderPage   = lazy(() => import('@/pages/billing/BillingOrderPage'))
 const AdminUserListPage  = lazy(() => import('@/pages/admin/users/AdminUserListPage'))
 const AdminUserDetailPage = lazy(() => import('@/pages/admin/users/AdminUserDetailPage'))
 const AdminUserCreatePage = lazy(() => import('@/pages/admin/users/AdminUserCreatePage'))
@@ -135,6 +137,20 @@ export const router = createBrowserRouter([
             path: ROUTES.PROFILE,
             element: withSuspense(<ProfilePage />),
             handle: { breadcrumb: 'Hồ sơ' },
+          },
+
+          /* Billing */
+          {
+            path: ROUTES.BILLING,
+            handle: { breadcrumb: 'Gói đăng ký' },
+            children: [
+              { index: true, element: withSuspense(<BillingPage />) },
+              {
+                path: 'orders/:id',
+                element: withSuspense(<BillingOrderPage />),
+                handle: { breadcrumb: 'Thanh toán' },
+              },
+            ],
           },
         ],
       },

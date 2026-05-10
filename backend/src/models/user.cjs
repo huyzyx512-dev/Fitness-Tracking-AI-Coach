@@ -31,6 +31,15 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'target_user_id',
         as: 'adminAuditLogsAsTarget',
       });
+
+      User.hasMany(models.PaymentOrder, {
+        foreignKey: 'user_id',
+        as: 'paymentOrders',
+      });
+      User.hasMany(models.UserSubscription, {
+        foreignKey: 'user_id',
+        as: 'subscriptions',
+      });
     }
   }
   User.init({
@@ -63,6 +72,17 @@ module.exports = (sequelize, DataTypes) => {
     },
     date_of_birth: {
       type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    /** Cache field — source of truth is user_subscription. Used by entitlement middleware for fast checks. */
+    subscription_tier: {
+      type: DataTypes.STRING(32),
+      defaultValue: 'FREE',
+      allowNull: false
+    },
+    /** Cache field — source of truth is user_subscription.expires_at. Null = no paid plan. */
+    subscription_expires_at: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {

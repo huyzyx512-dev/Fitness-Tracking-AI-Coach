@@ -15,6 +15,8 @@ export interface User {
   date_of_birth: string | null
   role_id: number
   role: Role
+  subscription_tier: string
+  subscription_expires_at: string | null
   createdAt: string
   updatedAt: string
 }

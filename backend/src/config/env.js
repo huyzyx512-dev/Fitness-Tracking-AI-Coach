@@ -35,6 +35,19 @@ const exerciseVideoMaxBytes = Math.min(
 const uploadsRoot = path.join(backendRoot, "uploads");
 const exerciseVideosDir = path.join(uploadsRoot, "exercises");
 
+/** Sepay payment provider configuration. All values come from env; never hardcode real bank info. */
+const sepayConfig = {
+  enabled: process.env.SEPAY_PROVIDER_ENABLED === "1" || process.env.SEPAY_PROVIDER_ENABLED === "true",
+  webhookSecret: process.env.SEPAY_WEBHOOK_SECRET?.trim() || undefined,
+  bankAccount: process.env.SEPAY_BANK_ACCOUNT?.trim() || undefined,
+  bankName: process.env.SEPAY_BANK_NAME?.trim() || undefined,
+  accountName: process.env.SEPAY_ACCOUNT_NAME?.trim() || undefined,
+  /** Optional QR template. Supports placeholders {amount} and {content}. */
+  qrTemplate: process.env.SEPAY_QR_TEMPLATE?.trim() || undefined,
+  /** Default order TTL in minutes. */
+  orderTtlMinutes: Math.max(5, Number(process.env.SEPAY_ORDER_TTL_MINUTES || 30)),
+};
+
 export const appConfig = {
   nodeEnv,
   isProduction,
@@ -51,6 +64,7 @@ export const appConfig = {
     uploadsRoot,
     exerciseVideosDir,
   },
+  sepay: sepayConfig,
 };
 
 export const buildRefreshTokenCookieOptions = (maxAge = appConfig.refreshTokenTtlMs) => ({
