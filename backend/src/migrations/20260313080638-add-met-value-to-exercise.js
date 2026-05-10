@@ -2,7 +2,7 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('Exercise', 'met_value', {
+    await queryInterface.addColumn('exercise', 'met_value', {
       type: Sequelize.DECIMAL(4, 1),
       defaultValue: 3.0,
       allowNull: false,
@@ -11,6 +11,6 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    await queryInterface.removeColumn('Exercise', 'met_value');
+    await queryInterface.removeColumn('exercise', 'met_value');
   }
 };
