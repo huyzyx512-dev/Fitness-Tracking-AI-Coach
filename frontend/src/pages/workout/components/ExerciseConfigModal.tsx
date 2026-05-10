@@ -9,6 +9,7 @@ import type { Exercise } from '@/types/exercise.types'
 import {
   exerciseConfigSchema,
   EXERCISE_CONFIG_ADD_DEFAULTS,
+  type ExerciseConfigFormInput,
   type ExerciseConfigFormValues,
 } from './exerciseConfigModal.schema'
 
@@ -37,7 +38,7 @@ export function ExerciseConfigModal({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ExerciseConfigFormValues>({
+  } = useForm<ExerciseConfigFormInput, unknown,ExerciseConfigFormValues>({
     resolver: zodResolver(exerciseConfigSchema),
     defaultValues: EXERCISE_CONFIG_ADD_DEFAULTS,
   })

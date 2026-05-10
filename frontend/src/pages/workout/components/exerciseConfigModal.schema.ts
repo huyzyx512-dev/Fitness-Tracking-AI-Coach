@@ -9,7 +9,8 @@ export const exerciseConfigSchema = z.object({
   comment: z.string().trim().max(1000).optional().default(''),
 })
 
-export type ExerciseConfigFormValues = z.infer<typeof exerciseConfigSchema>
+export type ExerciseConfigFormInput = z.input<typeof exerciseConfigSchema>
+export type ExerciseConfigFormValues = z.output<typeof exerciseConfigSchema>
 
 export const EXERCISE_CONFIG_ADD_DEFAULTS: ExerciseConfigFormValues = {
   sets: 3,

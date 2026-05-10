@@ -72,7 +72,7 @@ class AuthService {
       throw new ForbiddenError("Tài khoản đã bị khóa");
     }
 
-    const accessToken = TokenService.createAccessToken(user);
+    const accessToken = TokenService.createAccessToken(user.id, user.tokenVersion);
     const refreshToken = await TokenService.createRefreshSession(user);
 
     authLog("access_issued", {
