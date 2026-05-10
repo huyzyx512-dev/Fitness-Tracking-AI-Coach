@@ -34,9 +34,20 @@ export default function ExerciseListPage() {
   const [catFilter,setCatFilter]= useState('')
   const [diffFilter,setDiffFilter]=useState('')
   const [creatorFilter, setCreatorFilter] = useState<'' | 'mine'>('')
+  const [muscleFilterMode, setMuscleFilterMode] = useState<'single' | 'multi'>('single')
+  const [singleMuscleId, setSingleMuscleId] = useState('')
+  const [multiMuscleIds, setMultiMuscleIds] = useState<number[]>([])
+  const [muscleMatch, setMuscleMatch] = useState<'any' | 'all'>('any')
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const { data: exercises, isLoading, error, refetch } = useExerciseList()
+  const selectedMuscleIds = muscleFilterMode === 'single'
+    ? (singleMuscleId ? [Number(singleMuscleId)] : [])
+    : multiMuscleIds
+
+  const { data: exercises, isLoading, error, refetch } = useExerciseList({
+    muscle_group_ids: selectedMuscleIds,
+    muscle_match: muscleMatch,
+  })
   const deleteMutation = useDeleteExercise()
 
   const categories = useMemo(() => {
@@ -49,6 +60,14 @@ export default function ExerciseListPage() {
     { value: '', label: 'Tất cả mức độ' },
     ...Object.entries(DIFFICULTY_LABELS).map(([v, l]) => ({ value: v, label: l })),
   ]
+  const muscleModeOptions = [
+    { value: 'single', label: '1 nhóm cơ' },
+    { value: 'multi', label: 'Nhiều nhóm cơ' },
+  ]
+  const muscleMatchOptions = [
+    { value: 'any', label: 'Khớp ít nhất 1 nhóm (OR)' },
+    { value: 'all', label: 'Khớp tất cả nhóm (AND)' },
+  ]
 
   const creatorOptions = useMemo(
     () => [
@@ -57,6 +76,25 @@ export default function ExerciseListPage() {
     ],
     [user?.id],
   )
+
+  const muscleGroups = useMemo(() => {
+    const map = new Map<number, string>()
+    exercises?.forEach((e) => e.muscleGroups?.forEach((mg) => map.set(mg.id, mg.name)))
+    return [...map.entries()]
+      .map(([value, label]) => ({ value: String(value), label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [exercises])
+
+  const muscleSelectOptions = useMemo(
+    () => [{ value: '', label: 'Tất cả nhóm cơ' }, ...muscleGroups],
+    [muscleGroups],
+  )
+
+  function toggleMultiMuscle(id: number) {
+    setMultiMuscleIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    )
+  }
 
   const filtered = useMemo(() => {
     if (!exercises) return []
@@ -100,6 +138,65 @@ export default function ExerciseListPage() {
             onChange={(e) => setCreatorFilter(e.target.value as '' | 'mine')}
             className="sm:w-40"
           />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-surface/40 p-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select
+            options={muscleModeOptions}
+            value={muscleFilterMode}
+            onChange={(e) => {
+              const nextMode = e.target.value as 'single' | 'multi'
+              setMuscleFilterMode(nextMode)
+              setSingleMuscleId('')
+              setMultiMuscleIds([])
+              setMuscleMatch('any')
+            }}
+            className="sm:w-44"
+          />
+          {muscleFilterMode === 'single' ? (
+            <Select
+              options={muscleSelectOptions}
+              value={singleMuscleId}
+              onChange={(e) => setSingleMuscleId(e.target.value)}
+              className="sm:w-64"
+            />
+          ) : (
+            <Select
+              options={muscleMatchOptions}
+              value={muscleMatch}
+              onChange={(e) => setMuscleMatch(e.target.value as 'any' | 'all')}
+              className="sm:w-64"
+            />
+          )}
+        </div>
+
+        {muscleFilterMode === 'multi' && (
+          muscleGroups.length === 0 ? (
+            <p className="text-xs text-muted italic">
+              Không có nhóm cơ để lọc theo danh sách hiện tại.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {muscleGroups.map((mg) => {
+                const id = Number(mg.value)
+                const isActive = multiMuscleIds.includes(id)
+                return (
+                  <button
+                    key={mg.value}
+                    type="button"
+                    onClick={() => toggleMultiMuscle(id)}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-md"
+                  >
+                    <Badge variant={isActive ? 'accent' : 'neutral'} className="cursor-pointer transition-all hover:opacity-80">
+                      {mg.label}
+                    </Badge>
+                  </button>
+                )
+              })}
+            </div>
+          )
         )}
       </div>
 

@@ -68,6 +68,11 @@ export interface ExerciseListResponse {
   exercises: Exercise[]
 }
 
+export interface ExerciseListFilters {
+  muscle_group_ids?: number[]
+  muscle_match?: 'any' | 'all'
+}
+
 export interface ExerciseResponse {
   exercise: Exercise
 }
