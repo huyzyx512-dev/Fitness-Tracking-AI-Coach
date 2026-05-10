@@ -7,7 +7,7 @@ export const registerSchema = z.object({
   birthday: z.string().min(1, "Vui lòng nhập ngày sinh"),
   height: z.coerce.number().positive("Chiều cao phải lớn hơn 0"),
   weight: z.coerce.number().positive("Cân nặng phải lớn hơn 0"),
-  gender: z.enum(["nam", "nữ", "khác"]).default("khác"),
+  gender: z.enum(["male", "female", "other"]).default("other"),
 });
 
 export const loginSchema = z.object({

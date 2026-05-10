@@ -30,7 +30,7 @@ const schema = z.object({
   name:          z.string().trim().min(3, 'Tên phải có ít nhất 3 ký tự').optional().or(z.literal('')),
   weight:        optionalPositiveNumber('Cân nặng phải lớn hơn 0'),
   height:        optionalPositiveNumber('Chiều cao phải lớn hơn 0'),
-  gender:        z.enum(['nam', 'nữ', 'khác'] as const).optional(),
+  gender:        z.enum(['male', 'female', 'other'] as const).optional(),
   date_of_birth: z.string().optional(),
 }).refine((d) => Object.values(d).some((v) => v !== undefined && v !== ''), {
   message: 'Vui lòng cập nhật ít nhất một thông tin',
@@ -54,7 +54,7 @@ export default function ProfilePage() {
       name:          user?.name ?? '',
       weight:        user?.weight ?? (undefined as unknown as number),
       height:        user?.height ?? (undefined as unknown as number),
-      gender:        (user?.gender as 'nam' | 'nữ' | 'khác' | undefined) ?? undefined,
+      gender:        (user?.gender as 'male' | 'female' | 'other' | undefined) ?? undefined,
       date_of_birth: user?.date_of_birth?.slice(0, 10) ?? '',
     },
   })

@@ -10,7 +10,7 @@ import TokenService from "./tokenService.js";
 import { authLog, maskEmail, tokenTail } from "../utils/authDebugLog.js";
 import { ADMIN_AUDIT_ACTIONS, recordAdminAudit } from "./adminAuditLogService.js";
 
-const VALID_GENDERS = ["nam", "nữ", "khác"];
+const VALID_GENDERS = ["male", "female", "other"];
 
 function parseGender(value) {
   const normalized = value?.toLowerCase();
@@ -31,7 +31,7 @@ class AuthService {
 
     const gender = parseGender(payload.gender);
     if (!gender) {
-      throw new ConflictError("Giới tính không hợp lệ. Chỉ chấp nhận: nam, nữ, khác");
+      throw new ConflictError("Giới tính không hợp lệ. Chỉ chấp nhận: male, female, other");
     }
 
     const password_hash = await bcrypt.hash(payload.password, 10);

@@ -101,15 +101,15 @@ export const DIFFICULTY_LABELS: Record<string, string> = {
 }
 
 export const GENDER = {
-  NAM:  'nam',
-  NU:   'nữ',
-  KHAC: 'khác',
+  male:  'nam',
+  female:   'nữ',
+  other: 'khác',
 } as const
 
 export const GENDER_LABELS: Record<string, string> = {
-  'nam':  'Nam',
-  'nữ':   'Nữ',
-  'khác': 'Khác',
+  'male':  'Nam',
+  'female':   'Nữ',
+  'other': 'Khác',
 }
 
 export const ROLE = {

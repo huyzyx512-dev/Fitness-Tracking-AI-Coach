@@ -11,17 +11,7 @@ import { useRegister } from '@/hooks/auth/useRegister'
 import { ROUTES, GENDER_LABELS } from '@/lib/constants'
 import type { RegisterPayload } from '@/types/auth.types'
 
-/**
- * Schema mirrors backend registerSchema exactly:
- *   name:     string, min 3
- *   email:    string, email
- *   password: string, min 6
- *   birthday: string, required (backend field name)
- *   height:   number, positive, required
- *   weight:   number, positive, required
- *   gender:   enum ["nam", "nữ", "khác"], required
- */
-const schema = z.object({
+const registerSchema = z.object({
   name:     z.string().trim().min(3, 'Tên phải có ít nhất 3 ký tự'),
   email:    z.string().email('Email không hợp lệ'),
   password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
@@ -33,11 +23,11 @@ const schema = z.object({
   weight:   z.coerce.number({ message: 'Vui lòng nhập cân nặng' })
     .refine((n) => Number.isFinite(n), 'Vui lòng nhập cân nặng')
     .positive('Cân nặng phải lớn hơn 0'),
-  gender:   z.enum(['nam', 'nữ', 'khác'] as const, { message: 'Vui lòng chọn giới tính' }),
+  gender:   z.enum(['male', 'female', 'other'] as const, { message: 'Vui lòng chọn giới tính' }),
 })
 
-type FormInput = z.input<typeof schema>
-type FormValues = z.output<typeof schema>
+type FormInput = z.input<typeof registerSchema>
+type FormValues = z.output<typeof registerSchema>
 
 const genderOptions = Object.entries(GENDER_LABELS).map(([value, label]) => ({ value, label }))
 
@@ -49,7 +39,7 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormInput, unknown, FormValues>({ resolver: zodResolver(schema) })
+  } = useForm<FormInput, unknown, FormValues>({ resolver: zodResolver(registerSchema) })
 
   return (
     <div className="animate-fade-up">
@@ -60,7 +50,7 @@ export default function RegisterPage() {
 
       <form
         onSubmit={handleSubmit((v) => {
-          const payload = schema.parse(v) as RegisterPayload
+          const payload = registerSchema.parse(v) as RegisterPayload
           registerMutation.mutate(payload)
         })}
         noValidate
