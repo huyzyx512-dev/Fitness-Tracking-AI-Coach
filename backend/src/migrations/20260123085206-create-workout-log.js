@@ -21,7 +21,7 @@ module.exports = {
       workout_id: {
         type: Sequelize.INTEGER,
         references: {
-          model: 'Workout',
+          model: 'workout',
           key: 'id'
         },
       },

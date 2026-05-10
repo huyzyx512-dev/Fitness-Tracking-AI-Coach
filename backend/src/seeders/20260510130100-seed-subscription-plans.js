@@ -1,9 +1,16 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+/**
+ * Tier codes must match TIER_RANK in entitlementMiddleware (FREE, PRO, COACH_PRO).
+ *
+ * @type {import('sequelize-cli').Migration}
+ */
 module.exports = {
   async up(queryInterface) {
     const now = new Date();
+    await queryInterface.bulkDelete('subscription_plan', {
+      code: ['FREE', 'PRO', 'COACH_PRO'],
+    });
     await queryInterface.bulkInsert('subscription_plan', [
       {
         code: 'FREE',

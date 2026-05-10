@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import db from "../models/index.js";
 import { appConfig } from "../config/env.js";
 import { authLog } from "../utils/authDebugLog.js";
+import { tr } from "zod/v4/locales";
 
 class TokenService {
   static createAccessToken(userId, tokenVersion) {
@@ -53,7 +54,7 @@ class TokenService {
   }
 
   static async findRefreshToken(token) {
-    
+
     if (!token) {
       return null;
     }

@@ -24,7 +24,7 @@ module.exports = {
       workout_id: {
         type: Sequelize.INTEGER,
         references: {
-          model: 'Workout',
+          model: 'workout',
           key: 'id'
         },
         onDelete: 'CASCADE',
@@ -34,7 +34,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         onUpdate: 'CASCADE',
         references: {
-          model: 'Exercise',
+          model: 'exercise',
           key: 'id'
         },
         onDelete: 'RESTRICT',

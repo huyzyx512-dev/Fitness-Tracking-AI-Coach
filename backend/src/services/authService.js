@@ -73,7 +73,9 @@ class AuthService {
     }
 
     const accessToken = TokenService.createAccessToken(user.id, user.tokenVersion);
+    console.log("accessToken", accessToken);
     const refreshToken = await TokenService.createRefreshSession(user);
+    console.log("refreshToken", refreshToken);
 
     authLog("access_issued", {
       userId: user.id,
