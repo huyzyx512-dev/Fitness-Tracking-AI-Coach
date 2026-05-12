@@ -26,9 +26,6 @@ const normalizeExerciseForApi = (exercise) => {
 };
 
 export const getExercises = asyncHandler(async (req, res) => {
-  // #region agent log
-  fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H1", location: "exerciseController.js:getExercises:entry", message: "Incoming exercise filter query", data: { muscle_group_ids: req.query?.muscle_group_ids ?? null, muscle_match: req.query?.muscle_match ?? null }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
   const rawMuscleGroupIds = String(req.query.muscle_group_ids || "").trim();
   const muscleGroupIds = rawMuscleGroupIds
     ? rawMuscleGroupIds
@@ -42,9 +39,6 @@ export const getExercises = asyncHandler(async (req, res) => {
   }
 
   const muscleMatch = req.query.muscle_match === "all" ? "all" : "any";
-  // #region agent log
-  fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H1", location: "exerciseController.js:getExercises:parsed", message: "Parsed exercise filter payload", data: { rawMuscleGroupIds, muscleGroupIds, muscleMatch }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
   const exercises = await getAllExercises({
     muscleGroupIds,
     muscleMatch,

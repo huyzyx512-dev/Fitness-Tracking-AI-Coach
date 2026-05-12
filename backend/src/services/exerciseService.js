@@ -150,9 +150,6 @@ export const getAllExercises = async (filters = {}) => {
   if (muscleGroupIds.length > 0) {
     const idsList = muscleGroupIds.join(",");
     const minRequiredMatches = muscleMatch === "all" ? muscleGroupIds.length : 1;
-    // #region agent log
-    fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H2", location: "exerciseService.js:getAllExercises:filter-setup", message: "Prepared SQL filter inputs", data: { muscleGroupIds, muscleMatch, idsList, minRequiredMatches }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     whereAnd.push(
       db.Sequelize.literal(`Exercise.id IN (
         SELECT em.exercise_id
@@ -165,25 +162,11 @@ export const getAllExercises = async (filters = {}) => {
   }
 
   const where = whereAnd.length > 0 ? { [db.Sequelize.Op.and]: whereAnd } : undefined;
-  // #region agent log
-  fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H3", location: "exerciseService.js:getAllExercises:before-findAll", message: "Executing Exercise.findAll", data: { hasWhere: Boolean(where), whereType: where ? "and-literal" : "none", includeCount: exerciseInclude.length }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
-  try {
-    const result = await db.Exercise.findAll({
-      where,
-      include: exerciseInclude,
-      order: [["name", "ASC"]],
-    });
-    // #region agent log
-    fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H4", location: "exerciseService.js:getAllExercises:success", message: "Exercise.findAll succeeded", data: { count: Array.isArray(result) ? result.length : -1 }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-    return result;
-  } catch (error) {
-    // #region agent log
-    fetch("http://127.0.0.1:7445/ingest/70e58504-4a0e-4545-83fa-9766f0b089ff", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "54b982" }, body: JSON.stringify({ sessionId: "54b982", runId: "pre-fix", hypothesisId: "H2", location: "exerciseService.js:getAllExercises:error", message: "Exercise.findAll failed", data: { name: error?.name || null, message: error?.message || null, parentMessage: error?.parent?.message || null, parentCode: error?.parent?.code || null, sqlMessage: error?.original?.sqlMessage || null }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-    throw error;
-  }
+  return db.Exercise.findAll({
+    where,
+    include: exerciseInclude,
+    order: [["name", "ASC"]],
+  });
 };
 
 export const createNewExercise = async (payload, userId) => {

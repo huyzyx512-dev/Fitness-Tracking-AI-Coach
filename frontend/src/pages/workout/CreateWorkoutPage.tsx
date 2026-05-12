@@ -20,7 +20,6 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 
 import { workoutApi } from '@/api/workout.api'
 import { useExerciseList } from '@/hooks/exercise/useExerciseList'
-import { useAuthStore } from '@/store/auth.store'
 import { QUERY_KEYS, ROUTES, DIFFICULTY_LABELS } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/utils'
 import type { CreateWorkoutPayload } from '@/types/workout.types'
@@ -51,17 +50,24 @@ type ExerciseConfigState =
 export default function CreateWorkoutPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
 
   const [search, setSearch] = useState('')
+  const [singleMuscleId, setSingleMuscleId] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [diffFilter, setDiffFilter] = useState('')
-  const [creatorFilter, setCreatorFilter] = useState<'' | 'mine'>('')
   const [picked, setPicked] = useState<PickedExerciseItem[]>([])
   const [configEx, setConfigEx] = useState<ExerciseConfigState>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const { data: exercises, isLoading, error, refetch } = useExerciseList()
+  const selectedMuscleIds = useMemo(
+    () => (singleMuscleId ? [Number(singleMuscleId)] : []),
+    [singleMuscleId],
+  )
+
+  const { data: exercises, isLoading, error, refetch } = useExerciseList({
+    muscle_group_ids: selectedMuscleIds,
+    muscle_match: 'any',
+  })
 
   const {
     register,
@@ -82,18 +88,25 @@ export default function CreateWorkoutPage() {
     ]
   }, [exercises])
 
+  const muscleOptions = useMemo(() => {
+    const map = new Map<number, string>()
+    exercises?.forEach((e) => {
+      e.muscleGroups.forEach((muscle) => {
+        map.set(muscle.id, muscle.name)
+      })
+    })
+
+    const items = [...map.entries()]
+      .map(([value, label]) => ({ value: String(value), label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'vi'))
+
+    return [{ value: '', label: 'Tất cả nhóm cơ' }, ...items]
+  }, [exercises])
+
   const diffOptions = [
     { value: '', label: 'Tất cả mức độ' },
     ...Object.entries(DIFFICULTY_LABELS).map(([v, l]) => ({ value: v, label: l })),
   ]
-
-  const creatorOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(user?.id ? [{ value: 'mine' as const, label: 'Bài của tôi' }] : []),
-    ],
-    [user?.id],
-  )
 
   const filtered = useMemo(() => {
     if (!exercises) return []
@@ -101,11 +114,7 @@ export default function CreateWorkoutPage() {
       .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
       .filter((e) => !catFilter || String(e.category_id) === catFilter)
       .filter((e) => !diffFilter || e.difficulty_level === diffFilter)
-      .filter((e) => {
-        if (creatorFilter !== 'mine' || !user) return true
-        return e.created_by === user.id
-      })
-  }, [exercises, search, catFilter, diffFilter, creatorFilter, user])
+  }, [exercises, search, catFilter, diffFilter])
 
   const pickedIds = useMemo(() => new Set(picked.map((p) => p.exercise.id)), [picked])
 
@@ -297,19 +306,17 @@ export default function CreateWorkoutPage() {
               className="sm:w-44"
             />
             <Select
+              options={muscleOptions}
+              value={singleMuscleId}
+              onChange={(e) => setSingleMuscleId(e.target.value)}
+              className="sm:w-44"
+            />
+            <Select
               options={diffOptions}
               value={diffFilter}
               onChange={(e) => setDiffFilter(e.target.value)}
               className="sm:w-40"
             />
-            {user?.id && (
-              <Select
-                options={creatorOptions}
-                value={creatorFilter}
-                onChange={(e) => setCreatorFilter(e.target.value as '' | 'mine')}
-                className="sm:w-40"
-              />
-            )}
           </div>
 
           {isLoading ? (
