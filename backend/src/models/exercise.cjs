@@ -60,6 +60,23 @@ module.exports = (sequelize, DataTypes) => {
     thumbnail_url: {
       type: DataTypes.STRING(500),
       allowNull: true
+    },
+    normalized_name: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Tên chuẩn hóa (lowercase+trim) phục vụ matching/reuse bài tập AI'
+    },
+    source_type: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'system',
+      comment: 'Nguồn gốc: system, ai_generated'
+    },
+    is_verified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      comment: 'Bài tập đã được xác minh (mặc định true cho dữ liệu hệ thống)'
     }
   }, {
     sequelize,

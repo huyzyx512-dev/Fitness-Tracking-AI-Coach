@@ -40,6 +40,16 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'user_id',
         as: 'subscriptions',
       });
+
+      User.hasMany(models.AiRequestLog, {
+        foreignKey: 'user_id',
+        as: 'aiRequestLogs',
+      });
+
+      User.hasMany(models.AiWorkoutRecommendation, {
+        foreignKey: 'user_id',
+        as: 'aiWorkoutRecommendations',
+      });
     }
   }
   User.init({
