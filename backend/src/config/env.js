@@ -35,6 +35,17 @@ const exerciseVideoMaxBytes = Math.min(
 const uploadsRoot = path.join(backendRoot, "uploads");
 const exerciseVideosDir = path.join(uploadsRoot, "exercises");
 
+/** AI provider configuration. All values come from env; never hardcode API key or model. */
+const aiRequestTimeoutRaw = Number(process.env.AI_REQUEST_TIMEOUT_MS);
+export const aiConfig = {
+  enabled: process.env.AI_FEATURE_ENABLED === "true" || process.env.AI_FEATURE_ENABLED === "1",
+  provider: process.env.AI_PROVIDER?.trim() || "openai",
+  baseUrl: (process.env.AI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
+  apiKey: process.env.AI_API_KEY?.trim() || "",
+  model: process.env.AI_MODEL?.trim() || "gpt-4o-mini",
+  requestTimeoutMs: Number.isFinite(aiRequestTimeoutRaw) && aiRequestTimeoutRaw > 0 ? aiRequestTimeoutRaw : 30000,
+};
+
 /** Sepay payment provider configuration. All values come from env; never hardcode real bank info. */
 const sepayConfig = {
   enabled: process.env.SEPAY_PROVIDER_ENABLED === "1" || process.env.SEPAY_PROVIDER_ENABLED === "true",
@@ -65,6 +76,7 @@ export const appConfig = {
     exerciseVideosDir,
   },
   sepay: sepayConfig,
+  ai: aiConfig,
 };
 
 export const buildRefreshTokenCookieOptions = (maxAge = appConfig.refreshTokenTtlMs) => ({
