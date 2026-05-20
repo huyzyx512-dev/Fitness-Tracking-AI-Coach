@@ -75,3 +75,75 @@ export const recommendationIdParamSchema = z.object({
     .int("id phải là số nguyên")
     .positive("id phải lớn hơn 0"),
 });
+
+/**
+ * Schema cho từng bài tập trong editedPlan.
+ * Dùng `.passthrough()` để giữ các field khác AI có thể trả (description, category,
+ * primaryMuscleGroup, secondaryMuscleGroups...) — service sẽ tự xử lý/clamp.
+ */
+const editedExerciseSchema = z
+  .object({
+    exerciseId: z
+      .number({ invalid_type_error: "exerciseId phải là một số" })
+      .int("exerciseId phải là số nguyên")
+      .positive("exerciseId phải lớn hơn 0")
+      .nullable()
+      .optional(),
+    name: z.string().trim().max(200, "Tên bài tập không được vượt quá 200 ký tự").optional(),
+    sets: z
+      .number({ invalid_type_error: "sets phải là một số" })
+      .int("sets phải là số nguyên")
+      .min(1, "sets tối thiểu là 1")
+      .max(10, "sets tối đa là 10")
+      .optional(),
+    reps: z
+      .number({ invalid_type_error: "reps phải là một số" })
+      .int("reps phải là số nguyên")
+      .min(1, "reps tối thiểu là 1")
+      .max(100, "reps tối đa là 100")
+      .optional(),
+    weight: z
+      .number({ invalid_type_error: "weight phải là một số" })
+      .min(0, "weight phải từ 0 trở lên")
+      .optional(),
+    restTimeSeconds: z
+      .number({ invalid_type_error: "restTimeSeconds phải là một số" })
+      .int("restTimeSeconds phải là số nguyên")
+      .min(0, "restTimeSeconds phải từ 0 trở lên")
+      .max(600, "restTimeSeconds tối đa là 600")
+      .optional(),
+    notes: z.string().max(1000, "Ghi chú không được vượt quá 1000 ký tự").optional(),
+  })
+  .passthrough();
+
+const editedDaySchema = z
+  .object({
+    dayIndex: z
+      .number({ invalid_type_error: "dayIndex phải là một số" })
+      .int("dayIndex phải là số nguyên")
+      .positive("dayIndex phải lớn hơn 0"),
+    title: z.string().trim().max(200, "Tiêu đề ngày tập không được vượt quá 200 ký tự").optional(),
+    focus: z.string().trim().max(500, "Trọng tâm không được vượt quá 500 ký tự").optional(),
+    exercises: z.array(editedExerciseSchema).optional(),
+  })
+  .passthrough();
+
+const editedPlanSchema = z
+  .object({
+    days: z.array(editedDaySchema).optional(),
+  })
+  .passthrough();
+
+export const applyRecommendationSchema = z.object({
+  selectedDayIndexes: z
+    .array(
+      z
+        .number({ invalid_type_error: "dayIndex phải là một số" })
+        .int("dayIndex phải là số nguyên")
+        .positive("dayIndex phải lớn hơn 0"),
+      { required_error: "Vui lòng chọn ngày tập để áp dụng" },
+    )
+    .min(1, "Cần chọn ít nhất 1 ngày tập")
+    .max(7, "Tối đa 7 ngày tập"),
+  editedPlan: editedPlanSchema.optional(),
+});

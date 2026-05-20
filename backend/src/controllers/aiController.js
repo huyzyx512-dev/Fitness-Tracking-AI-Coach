@@ -4,6 +4,7 @@ import {
   askCoachSchema,
   generateWorkoutPlanSchema,
   recommendationIdParamSchema,
+  applyRecommendationSchema,
 } from "../validators/aiValidator.js";
 import AIRecommendationService from "../services/aiRecommendationService.js";
 
@@ -34,4 +35,15 @@ export const getRecommendationDetail = asyncHandler(async (req, res) => {
     params.id,
   );
   return res.status(200).json({ recommendation });
+});
+
+export const applyRecommendation = asyncHandler(async (req, res) => {
+  const params = parseSchema(recommendationIdParamSchema, req.params);
+  const payload = parseSchema(applyRecommendationSchema, req.body);
+  const result = await aiRecommendationService.applyRecommendation(
+    req.user.id,
+    params.id,
+    payload,
+  );
+  return res.status(200).json(result);
 });

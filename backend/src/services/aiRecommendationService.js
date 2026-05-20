@@ -1,12 +1,60 @@
 import db from "../models/index.js";
-import { AppError, NotFoundError } from "../errors/AppError.js";
+import {
+  AppError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "../errors/AppError.js";
 import { createAIProvider } from "../integrations/ai/aiProviderFactory.js";
+import { WORKOUT_STATUS } from "../utils/workoutStatus.js";
 
 const AVAILABLE_EXERCISES_LIMIT = 120;
 const RECOMMENDATION_LIST_LIMIT = 50;
 const ERROR_MESSAGE_MAX_LENGTH = 2000;
 const VALID_LEVELS = ["beginner", "intermediate", "advanced"];
 const VALID_GOALS = ["muscle_gain", "fat_loss", "endurance", "general_fitness", "other"];
+
+/**
+ * Bản đồ đồng nghĩa nhóm cơ: key là chuỗi đã normalize (strip dấu + lowercase),
+ * value là tên muscle group chuẩn (PascalCase) khớp với seed DB hiện có.
+ */
+const MUSCLE_SYNONYMS = {
+  chest: "Chest",
+  "upper chest": "Chest",
+  "lower chest": "Chest",
+  nguc: "Chest",
+  back: "Back",
+  lats: "Back",
+  latissimus: "Back",
+  traps: "Back",
+  lung: "Back",
+  shoulder: "Shoulders",
+  shoulders: "Shoulders",
+  delts: "Shoulders",
+  deltoids: "Shoulders",
+  vai: "Shoulders",
+  biceps: "Biceps",
+  "tay truoc": "Biceps",
+  triceps: "Triceps",
+  "tay sau": "Triceps",
+  quadriceps: "Quadriceps",
+  quads: "Quadriceps",
+  "dui truoc": "Quadriceps",
+  hamstrings: "Hamstrings",
+  "dui sau": "Hamstrings",
+  glutes: "Glutes",
+  mong: "Glutes",
+  core: "Core",
+  abs: "Core",
+  abdominal: "Core",
+  bung: "Core",
+  calves: "Calves",
+  "bap chan": "Calves",
+  forearms: "Forearms",
+  "cang tay": "Forearms",
+  "full body": "Full Body",
+  "toan than": "Full Body",
+};
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -152,6 +200,258 @@ function sanitizeGeneratedPlan(rawPlan, fallbackInput) {
   );
 
   return { summary, goal, daysPerWeek, sessionMinutes, level, days };
+}
+
+// ---------------------------------------------------------------------------
+// Apply helpers
+// ---------------------------------------------------------------------------
+
+/** Chuẩn hoá tên bài tập: strip dấu + lowercase + collapse khoảng trắng. */
+function normalizeExerciseName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Tìm category id phù hợp; fallback category đầu tiên. Không tạo mới ở MVP. */
+function resolveCategoryId(categoryName, categories) {
+  if (!Array.isArray(categories) || categories.length === 0) {
+    throw new AppError(
+      "Hệ thống chưa có danh mục bài tập để gán cho bài tập mới do AI tạo",
+      500,
+    );
+  }
+
+  const target = normalizeExerciseName(categoryName);
+  if (target) {
+    const exact = categories.find(
+      (c) => normalizeExerciseName(c.name) === target,
+    );
+    if (exact) return exact.id;
+  }
+
+  const strength = categories.find(
+    (c) => normalizeExerciseName(c.name) === "strength training",
+  );
+  if (strength) return strength.id;
+
+  return categories[0].id;
+}
+
+/** Tìm muscle group id; thử exact → synonym → fallback Full Body → first. */
+function resolveMuscleGroupId(muscleName, muscleGroups) {
+  if (!Array.isArray(muscleGroups) || muscleGroups.length === 0) {
+    throw new AppError(
+      "Hệ thống chưa có nhóm cơ để gán cho bài tập mới do AI tạo",
+      500,
+    );
+  }
+
+  const target = normalizeExerciseName(muscleName);
+  if (target) {
+    const exact = muscleGroups.find(
+      (m) => normalizeExerciseName(m.name) === target,
+    );
+    if (exact) return exact.id;
+
+    const synonymName = MUSCLE_SYNONYMS[target];
+    if (synonymName) {
+      const syn = muscleGroups.find((m) => m.name === synonymName);
+      if (syn) return syn.id;
+    }
+  }
+
+  const fullBody = muscleGroups.find(
+    (m) => normalizeExerciseName(m.name) === "full body",
+  );
+  if (fullBody) return fullBody.id;
+
+  return muscleGroups[0].id;
+}
+
+/**
+ * Tạo Exercise mới ở dạng ai_generated + sync ExerciseMuscle theo primary/secondary.
+ * Caller phải truyền transaction và bộ cache categories/muscleGroups đã load 1 lần.
+ */
+async function createAiGeneratedExercise(
+  aiExercise,
+  { categories, muscleGroups },
+  transaction,
+) {
+  const rawName = typeof aiExercise.name === "string" ? aiExercise.name.trim() : "";
+  if (!rawName) {
+    throw new ValidationError("Bài tập do AI tạo thiếu tên");
+  }
+  const name = rawName.slice(0, 255);
+  const normalized = normalizeExerciseName(name);
+
+  const description = typeof aiExercise.description === "string"
+    ? aiExercise.description.slice(0, 5000)
+    : "";
+
+  const difficulty = VALID_LEVELS.includes(aiExercise.difficultyLevel)
+    ? aiExercise.difficultyLevel
+    : "beginner";
+
+  const equipment = (typeof aiExercise.equipment === "string" && aiExercise.equipment.trim())
+    ? aiExercise.equipment.trim().slice(0, 100)
+    : "none";
+
+  const metRaw = Number(aiExercise.metValue);
+  const metValue = Number.isFinite(metRaw) && metRaw > 0 ? metRaw : 3.0;
+
+  const categoryId = resolveCategoryId(aiExercise.category, categories);
+
+  const exercise = await db.Exercise.create(
+    {
+      name,
+      description,
+      category_id: categoryId,
+      difficulty_level: difficulty,
+      equipment,
+      met_value: metValue,
+      normalized_name: normalized,
+      source_type: "ai_generated",
+      is_verified: false,
+      created_by: null,
+    },
+    { transaction },
+  );
+
+  const primaryId = resolveMuscleGroupId(aiExercise.primaryMuscleGroup, muscleGroups);
+  const secondaryRaw = Array.isArray(aiExercise.secondaryMuscleGroups)
+    ? aiExercise.secondaryMuscleGroups
+    : [];
+  const secondaryIds = [...new Set(
+    secondaryRaw
+      .filter((s) => typeof s === "string" && s.trim())
+      .map((s) => resolveMuscleGroupId(s, muscleGroups))
+      .filter((id) => id !== primaryId),
+  )];
+
+  const muscleRows = [
+    { exercise_id: exercise.id, muscle_group_id: primaryId, is_primary: true },
+    ...secondaryIds.map((mid) => ({
+      exercise_id: exercise.id,
+      muscle_group_id: mid,
+      is_primary: false,
+    })),
+  ];
+
+  await db.ExerciseMuscle.bulkCreate(muscleRows, { transaction });
+
+  return exercise;
+}
+
+/**
+ * Resolve toàn bộ bài tập trong các day đã chọn → trả Map<"dayIndex_exIdx", exerciseId>.
+ *
+ * Thuật toán hạn chế N+1:
+ * 1. Bulk findAll theo tập exerciseId hợp lệ.
+ * 2. Bulk findAll theo tập normalized_name (gồm cả phiên bản strip-dấu và lowercase-trim
+ *    để khớp dữ liệu backfill cũ "LOWER(TRIM(name))" + dữ liệu mới có strip dấu).
+ * 3. Còn lại mới create Exercise mới ai_generated.
+ */
+async function resolveExercisesForApply(
+  selectedDays,
+  { categories, muscleGroups },
+  transaction,
+) {
+  const idCandidates = new Set();
+  const nameCandidates = new Set();
+
+  for (const day of selectedDays) {
+    for (const ex of day.exercises) {
+      if (Number.isInteger(ex.exerciseId) && ex.exerciseId > 0) {
+        idCandidates.add(ex.exerciseId);
+      }
+      if (typeof ex.name === "string" && ex.name.trim()) {
+        const trimmed = ex.name.trim();
+        const normalized = normalizeExerciseName(trimmed);
+        const lower = trimmed.toLowerCase();
+        if (normalized) nameCandidates.add(normalized);
+        if (lower && lower !== normalized) nameCandidates.add(lower);
+      }
+    }
+  }
+
+  const Op = db.Sequelize.Op;
+  const idMap = new Map();
+  if (idCandidates.size > 0) {
+    const rows = await db.Exercise.findAll({
+      where: { id: { [Op.in]: Array.from(idCandidates) } },
+      attributes: ["id", "name", "normalized_name"],
+      transaction,
+    });
+    for (const r of rows) idMap.set(r.id, r);
+  }
+
+  const nameMap = new Map();
+  if (nameCandidates.size > 0) {
+    const rows = await db.Exercise.findAll({
+      where: { normalized_name: { [Op.in]: Array.from(nameCandidates) } },
+      attributes: ["id", "name", "normalized_name"],
+      transaction,
+    });
+    for (const r of rows) {
+      if (r.normalized_name && !nameMap.has(r.normalized_name)) {
+        nameMap.set(r.normalized_name, r);
+      }
+    }
+  }
+
+  const resolved = new Map();
+
+  for (const day of selectedDays) {
+    for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
+      const ex = day.exercises[exIdx];
+      const key = `${day.dayIndex}_${exIdx}`;
+
+      if (
+        Number.isInteger(ex.exerciseId) &&
+        ex.exerciseId > 0 &&
+        idMap.has(ex.exerciseId)
+      ) {
+        resolved.set(key, idMap.get(ex.exerciseId).id);
+        continue;
+      }
+
+      const rawName = typeof ex.name === "string" ? ex.name.trim() : "";
+      if (rawName) {
+        const normalized = normalizeExerciseName(rawName);
+        const lower = rawName.toLowerCase();
+        const match =
+          (normalized && nameMap.get(normalized)) || nameMap.get(lower);
+        if (match) {
+          resolved.set(key, match.id);
+          continue;
+        }
+      }
+
+      if (!rawName) {
+        throw new ValidationError(
+          `Ngày tập ${day.dayIndex} có bài tập thiếu tên hoặc exerciseId không hợp lệ`,
+        );
+      }
+
+      const created = await createAiGeneratedExercise(
+        ex,
+        { categories, muscleGroups },
+        transaction,
+      );
+      if (created.normalized_name) {
+        nameMap.set(created.normalized_name, created);
+      }
+      idMap.set(created.id, created);
+      resolved.set(key, created.id);
+    }
+  }
+
+  return resolved;
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +800,181 @@ class AIRecommendationService {
       createdAt: rec.createdAt,
       updatedAt: rec.updatedAt,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // applyRecommendation
+  // -------------------------------------------------------------------------
+
+  /**
+   * Áp dụng các ngày được chọn trong recommendation thành nhiều Workout thật.
+   * Toàn bộ thao tác (tạo Exercise mới nếu cần, tạo Workout, tạo WorkoutExercise,
+   * cập nhật trạng thái recommendation) chạy trong cùng 1 Sequelize transaction.
+   */
+  async applyRecommendation(userId, recommendationId, payload) {
+    if (!userId) throw new AppError("userId là bắt buộc", 400);
+    if (!Number.isInteger(recommendationId) || recommendationId <= 0) {
+      throw new AppError("recommendationId là bắt buộc", 400);
+    }
+    if (!payload || typeof payload !== "object") {
+      throw new AppError("payload là bắt buộc", 400);
+    }
+
+    const selectedDayIndexes = payload.selectedDayIndexes;
+    if (!Array.isArray(selectedDayIndexes) || selectedDayIndexes.length === 0) {
+      throw new ValidationError("Vui lòng chọn ít nhất 1 ngày tập để áp dụng");
+    }
+
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      // Lock recommendation row để tránh race condition apply 2 lần
+      const rec = await db.AiWorkoutRecommendation.findOne({
+        where: { id: recommendationId, user_id: userId },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!rec) {
+        throw new NotFoundError("Không tìm thấy recommendation");
+      }
+
+      if (rec.status !== "draft") {
+        throw new ConflictError(
+          "Recommendation này đã được áp dụng trước đó hoặc không còn ở trạng thái draft",
+        );
+      }
+
+      const plan =
+        payload.editedPlan && Array.isArray(payload.editedPlan.days)
+          ? payload.editedPlan
+          : rec.generated_plan;
+
+      if (!plan || !Array.isArray(plan.days) || plan.days.length === 0) {
+        throw new ValidationError("Kế hoạch không có ngày tập để áp dụng");
+      }
+
+      const selectedSet = new Set(selectedDayIndexes);
+      const selectedDays = plan.days.filter(
+        (d) => d && selectedSet.has(d.dayIndex),
+      );
+
+      if (selectedDays.length === 0) {
+        throw new ValidationError(
+          "Không có ngày tập nào khớp với selectedDayIndexes",
+        );
+      }
+
+      for (const d of selectedDays) {
+        if (!Array.isArray(d.exercises) || d.exercises.length === 0) {
+          throw new ValidationError(
+            `Ngày tập ${d.dayIndex} không có bài tập để áp dụng`,
+          );
+        }
+      }
+
+      // Load categories + muscleGroups 1 lần (chỉ cần khi tạo Exercise mới,
+      // nhưng load trước để resolveExercisesForApply không phải fetch lại N+1)
+      const [categories, muscleGroups] = await Promise.all([
+        db.Category.findAll({
+          attributes: ["id", "name"],
+          transaction,
+        }),
+        db.MuscleGroup.findAll({
+          attributes: ["id", "name"],
+          transaction,
+        }),
+      ]);
+
+      const categoriesData = categories.map((c) => c.toJSON());
+      const muscleGroupsData = muscleGroups.map((m) => m.toJSON());
+
+      const resolved = await resolveExercisesForApply(
+        selectedDays,
+        { categories: categoriesData, muscleGroups: muscleGroupsData },
+        transaction,
+      );
+
+      const planSummary = typeof plan.summary === "string"
+        ? plan.summary.slice(0, 200)
+        : "";
+
+      const workoutIds = [];
+
+      for (const day of selectedDays) {
+        const rawTitle = typeof day.title === "string" ? day.title.trim() : "";
+        const title = (rawTitle ? rawTitle : `AI Workout Day ${day.dayIndex}`).slice(0, 200);
+
+        const focus = typeof day.focus === "string" ? day.focus.slice(0, 200) : "";
+        const notesParts = [];
+        if (planSummary) notesParts.push(`Tóm tắt: ${planSummary}`);
+        if (focus) notesParts.push(`Trọng tâm: ${focus}`);
+        const notes = notesParts.join("\n") || "Kế hoạch tập do AI tạo";
+
+        const workout = await db.Workout.create(
+          {
+            user_id: userId,
+            title,
+            notes,
+            scheduled_at: null,
+            status: WORKOUT_STATUS.PENDING,
+          },
+          { transaction },
+        );
+
+        // Dedupe theo exercise_id trong cùng day: giữ item đầu tiên
+        const seenExerciseIds = new Set();
+        const workoutExerciseRows = [];
+
+        for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
+          const aiEx = day.exercises[exIdx];
+          const key = `${day.dayIndex}_${exIdx}`;
+          const exerciseId = resolved.get(key);
+          if (!exerciseId) continue;
+          if (seenExerciseIds.has(exerciseId)) continue;
+          seenExerciseIds.add(exerciseId);
+
+          const weightRaw = Number(aiEx?.weight);
+          workoutExerciseRows.push({
+            workout_id: workout.id,
+            exercise_id: exerciseId,
+            sets: clampInt(aiEx?.sets, 1, 10, 3),
+            reps: clampInt(aiEx?.reps, 1, 100, 10),
+            weight: Math.max(0, Number.isFinite(weightRaw) ? weightRaw : 0),
+            comment: typeof aiEx?.notes === "string"
+              ? aiEx.notes.slice(0, 1000)
+              : "",
+            rest_time_seconds: clampInt(aiEx?.restTimeSeconds, 0, 600, 60),
+            order_index: workoutExerciseRows.length,
+          });
+        }
+
+        if (workoutExerciseRows.length === 0) {
+          throw new ValidationError(
+            `Ngày tập ${day.dayIndex} không có bài tập hợp lệ sau khi xử lý`,
+          );
+        }
+
+        await db.WorkoutExercise.bulkCreate(workoutExerciseRows, { transaction });
+        workoutIds.push(workout.id);
+      }
+
+      rec.status = "applied";
+      rec.applied_at = new Date();
+      await rec.save({ transaction });
+
+      await transaction.commit();
+
+      return {
+        message: "Áp dụng kế hoạch AI thành công",
+        workoutIds,
+      };
+    } catch (error) {
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
+      throw error;
+    }
   }
 
   /** Ngoài scope MVP — không dùng */
