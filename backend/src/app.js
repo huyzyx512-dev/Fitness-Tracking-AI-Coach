@@ -8,6 +8,7 @@ import exerciseRoute from "./routes/exerciseRoute.js";
 import workoutLogRoute from "./routes/workoutLogRoute.js";
 import billingRoute from "./routes/billingRoute.js";
 import billingWebhookRoute from "./routes/billingWebhookRoute.js";
+import aiRoute from "./routes/aiRoute.js";
 import { authenticationToken } from "./middlewares/authMiddleware.js";
 import { appConfig } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middlewares/errorMiddleware.js";
@@ -56,6 +57,7 @@ app.use("/api/user", userRoute);
 app.use("/api/workouts", authenticationToken, workoutRoute);
 app.use("/api/exercises", exerciseRoute);
 app.use("/api/workout-logs", authenticationToken, workoutLogRoute);
+app.use("/api/ai", authenticationToken, aiRoute);
 
 app.use("/api/billing", billingRoute);
 
