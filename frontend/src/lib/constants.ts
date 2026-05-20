@@ -67,6 +67,13 @@ export const API_ENDPOINTS = {
   BILLING_SUBSCRIPTION: '/billing/subscription',
   BILLING_ORDERS:       '/billing/orders',
   BILLING_ORDER:        (id: number | string) => `/billing/orders/${id}`,
+
+  // AI Fitness Coach
+  AI_ASK:                      '/ai/ask',
+  AI_RECOMMENDATION_GENERATE:  '/ai/recommendations/generate',
+  AI_RECOMMENDATIONS:          '/ai/recommendations',
+  AI_RECOMMENDATION:           (id: number | string) => `/ai/recommendations/${id}`,
+  AI_RECOMMENDATION_APPLY:     (id: number | string) => `/ai/recommendations/${id}/apply`,
 } as const
 
 /* ─── TanStack Query Keys ────────────────────────────────── */
@@ -84,6 +91,8 @@ export const QUERY_KEYS = {
   BILLING_PLANS:        ['billing', 'plans'] as const,
   BILLING_SUBSCRIPTION: ['billing', 'subscription'] as const,
   BILLING_ORDER:        (id: number | string) => ['billing', 'orders', id] as const,
+  AI_RECOMMENDATIONS:   () => ['ai', 'recommendations'] as const,
+  AI_RECOMMENDATION:    (id: number | string) => ['ai', 'recommendations', id] as const,
 } as const
 
 /* ─── Domain Enums ───────────────────────────────────────── */
