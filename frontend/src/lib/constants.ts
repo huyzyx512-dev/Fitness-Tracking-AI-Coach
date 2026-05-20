@@ -10,6 +10,7 @@ export const ROUTES = {
   EXERCISES:       '/exercises',
   EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
+  AI_COACH:        '/ai-coach',
   PROFILE:         '/profile',
   BILLING:         '/billing',
   BILLING_ORDER:   (id: number | string) => `/billing/orders/${id}`,

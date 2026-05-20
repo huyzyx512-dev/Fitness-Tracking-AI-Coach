@@ -21,6 +21,7 @@ const ExerciseDetailPage = lazy(() => import('@/pages/exercise/ExerciseDetailPag
 const CreateExercisePage = lazy(() => import('@/pages/exercise/CreateExercisePage'))
 const EditExercisePage   = lazy(() => import('@/pages/exercise/EditExercisePage'))
 const LogsPage           = lazy(() => import('@/pages/logs/LogsPage'))
+const AiCoachPage        = lazy(() => import('@/pages/ai/AiCoachPage'))
 const ProfilePage        = lazy(() => import('@/pages/ProfilePage'))
 const BillingPage        = lazy(() => import('@/pages/billing/BillingPage'))
 const BillingOrderPage   = lazy(() => import('@/pages/billing/BillingOrderPage'))
@@ -130,6 +131,13 @@ export const router = createBrowserRouter([
             path: ROUTES.LOGS,
             element: withSuspense(<LogsPage />),
             handle: { breadcrumb: 'Nhật ký' },
+          },
+
+          /* AI Coach */
+          {
+            path: ROUTES.AI_COACH,
+            element: withSuspense(<AiCoachPage />),
+            handle: { breadcrumb: 'AI Coach' },
           },
 
           /* Profile */
