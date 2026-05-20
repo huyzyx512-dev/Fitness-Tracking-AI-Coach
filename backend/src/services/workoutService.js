@@ -65,7 +65,7 @@ class WorkoutService {
       user_id: userId,
       title: payload.title,
       notes: payload.notes,
-      scheduled_at: payload.scheduled_at,
+      scheduled_at: payload.scheduled_at ?? null,
       status: WORKOUT_STATUS.PENDING,
     });
   }

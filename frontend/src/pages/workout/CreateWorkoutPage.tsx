@@ -30,14 +30,17 @@ import { ExerciseConfigModal } from './components/ExerciseConfigModal'
 import type { ExerciseConfigFormValues } from './components/exerciseConfigModal.schema'
 import { PickedExerciseList, type PickedExerciseItem } from './components/PickedExerciseList'
 
-/** Same rules as `WorkoutForm` — mirrors backend createWorkoutSchema */
+/** Same rules as `WorkoutForm` — mirrors backend createWorkoutSchema. scheduled_at là tuỳ chọn. */
 const workoutInfoSchema = z.object({
   title: z.string().trim().min(1, 'Vui lòng nhập tiêu đề').max(100),
   notes: z.string().trim().min(1, 'Vui lòng nhập ghi chú'),
   scheduled_at: z
     .string()
-    .min(1, 'Vui lòng chọn thời gian tập')
-    .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'Định dạng ngày tháng không hợp lệ' }),
+    .optional()
+    .refine(
+      (v) => !v || !Number.isNaN(Date.parse(v)),
+      { message: 'Định dạng ngày tháng không hợp lệ' },
+    ),
 })
 
 type WorkoutInfoValues = z.infer<typeof workoutInfoSchema>
@@ -166,7 +169,7 @@ export default function CreateWorkoutPage() {
     const payload: CreateWorkoutPayload = {
       title: values.title,
       notes: values.notes,
-      scheduled_at: values.scheduled_at,
+      scheduled_at: values.scheduled_at ? values.scheduled_at : null,
     }
     setIsSubmitting(true)
     try {
@@ -254,11 +257,10 @@ export default function CreateWorkoutPage() {
               />
 
               <Input
-                label="Thời gian tập dự kiến"
+                label="Thời gian tập dự kiến (không bắt buộc)"
                 type="datetime-local"
                 leftIcon={<CalendarDays size={15} />}
                 error={errors.scheduled_at?.message}
-                required
                 {...register('scheduled_at')}
               />
 

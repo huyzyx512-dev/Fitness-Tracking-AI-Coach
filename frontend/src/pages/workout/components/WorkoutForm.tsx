@@ -10,14 +10,17 @@ import { Card } from '@/components/ui/Card'
 import { ROUTES } from '@/lib/constants'
 import type { CreateWorkoutPayload, Workout } from '@/types/workout.types'
 
-/* Schema mirrors backend createWorkoutSchema — notes and scheduled_at are required */
+/* Schema mirrors backend createWorkoutSchema — scheduled_at là tuỳ chọn */
 const schema = z.object({
   title:        z.string().trim().min(1, 'Vui lòng nhập tiêu đề').max(100),
   notes:        z.string().trim().min(1, 'Vui lòng nhập ghi chú'),
-  scheduled_at: z.string().min(1, 'Vui lòng chọn thời gian tập').refine(
-    (v) => !Number.isNaN(Date.parse(v)),
-    { message: 'Định dạng ngày tháng không hợp lệ' },
-  ),
+  scheduled_at: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || !Number.isNaN(Date.parse(v)),
+      { message: 'Định dạng ngày tháng không hợp lệ' },
+    ),
 })
 
 export type WorkoutFormValues = z.infer<typeof schema>
@@ -51,9 +54,18 @@ export function WorkoutForm({
     navigate(ROUTES.WORKOUTS)
   }
 
+  /** Transform form values → API payload: '' → null để backend nhận */
+  function handleFormSubmit(values: WorkoutFormValues) {
+    onSubmit({
+      title: values.title,
+      notes: values.notes,
+      scheduled_at: values.scheduled_at ? values.scheduled_at : null,
+    })
+  }
+
   return (
     <Card>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">
         <Input
           label="Tên buổi tập"
           placeholder="VD: Push Day — Ngực & Vai"
@@ -72,11 +84,10 @@ export function WorkoutForm({
         />
 
         <Input
-          label="Thời gian tập dự kiến"
+          label="Thời gian tập dự kiến (không bắt buộc)"
           type="datetime-local"
           leftIcon={<CalendarDays size={15} />}
           error={errors.scheduled_at?.message}
-          required
           {...register('scheduled_at')}
         />
 
