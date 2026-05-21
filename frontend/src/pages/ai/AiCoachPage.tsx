@@ -5,6 +5,7 @@ import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AskCoachTab } from '@/pages/ai/components/AskCoachTab'
+import { GeneratePlanTab } from '@/pages/ai/components/GeneratePlanTab'
 
 type AiCoachTab = 'ask' | 'generate' | 'history'
 
@@ -37,10 +38,8 @@ const TAB_PLACEHOLDERS: Record<
 
 export default function AiCoachPage() {
   const [activeTab, setActiveTab] = useState<AiCoachTab>('ask')
-  const placeholder =
-    activeTab === 'generate' || activeTab === 'history'
-      ? TAB_PLACEHOLDERS[activeTab]
-      : null
+  const historyPlaceholder =
+    activeTab === 'history' ? TAB_PLACEHOLDERS.history : null
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -79,12 +78,16 @@ export default function AiCoachPage() {
             <div role="tabpanel" aria-label="Ask Coach">
               <AskCoachTab />
             </div>
-          ) : placeholder ? (
-            <div role="tabpanel" aria-label={placeholder.title}>
+          ) : activeTab === 'generate' ? (
+            <div role="tabpanel" aria-label="Generate Plan">
+              <GeneratePlanTab />
+            </div>
+          ) : historyPlaceholder ? (
+            <div role="tabpanel" aria-label={historyPlaceholder.title}>
               <EmptyState
-                icon={placeholder.icon}
-                title={placeholder.title}
-                description={placeholder.description}
+                icon={historyPlaceholder.icon}
+                title={historyPlaceholder.title}
+                description={historyPlaceholder.description}
               />
             </div>
           ) : null}
