@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Activity, CalendarDays, Type } from 'lucide-react'
+import { Activity, CalendarDays, Sparkles, Type } from 'lucide-react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -29,6 +29,7 @@ import { ExercisePickerCard } from './components/ExercisePickerCard'
 import { ExerciseConfigModal } from './components/ExerciseConfigModal'
 import type { ExerciseConfigFormValues } from './components/exerciseConfigModal.schema'
 import { PickedExerciseList, type PickedExerciseItem } from './components/PickedExerciseList'
+import { AiPlanModal } from './components/AiPlanModal'
 
 /** Same rules as `WorkoutForm` — mirrors backend createWorkoutSchema. scheduled_at là tuỳ chọn. */
 const workoutInfoSchema = z.object({
@@ -60,6 +61,7 @@ export default function CreateWorkoutPage() {
   const [diffFilter, setDiffFilter] = useState('')
   const [picked, setPicked] = useState<PickedExerciseItem[]>([])
   const [configEx, setConfigEx] = useState<ExerciseConfigState>(null)
+  const [aiPlanOpen, setAiPlanOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedMuscleIds = useMemo(
@@ -276,8 +278,18 @@ export default function CreateWorkoutPage() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-wrap gap-3">
               <CardTitle>Bài tập đã chọn ({picked.length})</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Sparkles size={14} />}
+                onClick={() => setAiPlanOpen(true)}
+                disabled={isSubmitting}
+              >
+                AI Plan
+              </Button>
             </CardHeader>
             <PickedExerciseList
               items={picked}
@@ -355,6 +367,16 @@ export default function CreateWorkoutPage() {
         mode={configEx?.mode ?? 'add'}
         defaultValues={editDefaults}
         onSubmit={handleConfigSubmit}
+      />
+
+      <AiPlanModal
+        open={aiPlanOpen}
+        onClose={() => setAiPlanOpen(false)}
+        exercises={exercises}
+        exercisesLoading={isLoading}
+        exercisesError={error}
+        onExercisesRetry={refetch}
+        onConfirm={(items) => setPicked((prev) => [...prev, ...items])}
       />
     </div>
   )
