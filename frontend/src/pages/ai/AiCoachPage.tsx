@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from 'react'
-import { CalendarPlus, History, MessageCircle } from 'lucide-react'
+import { useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { AskCoachTab } from '@/pages/ai/components/AskCoachTab'
 import { GeneratePlanTab } from '@/pages/ai/components/GeneratePlanTab'
+import { HistoryTab } from '@/pages/ai/components/HistoryTab'
 
 type AiCoachTab = 'ask' | 'generate' | 'history'
 
@@ -15,31 +14,8 @@ const TABS: { id: AiCoachTab; label: string }[] = [
   { id: 'history',   label: 'History' },
 ]
 
-const TAB_PLACEHOLDERS: Record<
-  AiCoachTab,
-  { title: string; description: string; icon: ReactNode }
-> = {
-  ask: {
-    title: 'Ask Coach',
-    description: 'Tab hỏi đáp AI sẽ được triển khai ở Stage 10.',
-    icon: <MessageCircle size={28} />,
-  },
-  generate: {
-    title: 'Generate Plan',
-    description: 'Tab tạo kế hoạch tập luyện sẽ được triển khai ở Stage 11.',
-    icon: <CalendarPlus size={28} />,
-  },
-  history: {
-    title: 'History',
-    description: 'Tab lịch sử recommendation sẽ được triển khai ở Stage 12.',
-    icon: <History size={28} />,
-  },
-}
-
 export default function AiCoachPage() {
   const [activeTab, setActiveTab] = useState<AiCoachTab>('ask')
-  const historyPlaceholder =
-    activeTab === 'history' ? TAB_PLACEHOLDERS.history : null
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -82,15 +58,11 @@ export default function AiCoachPage() {
             <div role="tabpanel" aria-label="Generate Plan">
               <GeneratePlanTab />
             </div>
-          ) : historyPlaceholder ? (
-            <div role="tabpanel" aria-label={historyPlaceholder.title}>
-              <EmptyState
-                icon={historyPlaceholder.icon}
-                title={historyPlaceholder.title}
-                description={historyPlaceholder.description}
-              />
+          ) : (
+            <div role="tabpanel" aria-label="History">
+              <HistoryTab />
             </div>
-          ) : null}
+          )}
         </CardBody>
       </Card>
     </div>
