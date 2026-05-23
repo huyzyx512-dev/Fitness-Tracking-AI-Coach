@@ -1,5 +1,6 @@
 import { aiConfig } from "../../config/env.js";
 import OpenAIProvider from "./openaiProvider.js";
+import OpenRouterProvider from "./openrouterProvider.js";
 
 /**
  * Tạo AI provider từ config.
@@ -16,6 +17,15 @@ export function createAIProvider(config = aiConfig) {
 
   if (config.provider === "openai") {
     return new OpenAIProvider({
+      apiKey: config.apiKey,
+      model: config.model,
+      baseUrl: config.baseUrl,
+      requestTimeoutMs: config.requestTimeoutMs,
+    });
+  }
+
+  if (config.provider === "openrouter") {
+    return new OpenRouterProvider({
       apiKey: config.apiKey,
       model: config.model,
       baseUrl: config.baseUrl,

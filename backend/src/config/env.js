@@ -37,12 +37,17 @@ const exerciseVideosDir = path.join(uploadsRoot, "exercises");
 
 /** AI provider configuration. All values come from env; never hardcode API key or model. */
 const aiRequestTimeoutRaw = Number(process.env.AI_REQUEST_TIMEOUT_MS);
+const aiProvider = process.env.AI_PROVIDER?.trim() || "openai";
+const aiBaseUrlFromEnv = process.env.AI_BASE_URL?.trim();
+const aiDefaultBaseUrl =
+  aiProvider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
+const aiDefaultModel = aiProvider === "openrouter" ? "openrouter/free" : "gpt-4o-mini";
 export const aiConfig = {
   enabled: process.env.AI_FEATURE_ENABLED === "true" || process.env.AI_FEATURE_ENABLED === "1",
-  provider: process.env.AI_PROVIDER?.trim() || "openai",
-  baseUrl: (process.env.AI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
+  provider: aiProvider,
+  baseUrl: (aiBaseUrlFromEnv || aiDefaultBaseUrl).replace(/\/$/, ""),
   apiKey: process.env.AI_API_KEY?.trim() || "",
-  model: process.env.AI_MODEL?.trim() || "gpt-4o-mini",
+  model: process.env.AI_MODEL?.trim() || aiDefaultModel,
   requestTimeoutMs: Number.isFinite(aiRequestTimeoutRaw) && aiRequestTimeoutRaw > 0 ? aiRequestTimeoutRaw : 30000,
 };
 

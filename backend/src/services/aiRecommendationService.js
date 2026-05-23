@@ -523,6 +523,7 @@ class AIRecommendationService {
         userContext,
       });
     } catch (err) {
+
       try {
         await db.AiRequestLog.create({
           user_id: userId,
@@ -537,7 +538,7 @@ class AIRecommendationService {
           error_message: truncateError(err),
         });
       } catch {
-        // Lỗi log không được che lỗi gốc
+        console.error("Lỗi lưu log thành công", err);
       }
       throw new AppError("Không thể xử lý yêu cầu AI lúc này", 502);
     }
@@ -557,7 +558,7 @@ class AIRecommendationService {
         error_message: null,
       });
     } catch {
-      // Log thất bại không làm mất kết quả AI
+      console.error("Lỗi lưu log thành công", err);
     }
 
     return {
