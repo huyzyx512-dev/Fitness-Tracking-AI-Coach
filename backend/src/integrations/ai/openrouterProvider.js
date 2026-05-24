@@ -1,4 +1,6 @@
 import AIProvider from "./aiProvider.js";
+import { requestWorkoutPlanJson } from "./jsonResponseUtils.js";
+import { executeChatCompletionsRequest } from "./providerCallUtils.js";
 
 class OpenRouterProvider extends AIProvider {
   constructor({
@@ -40,68 +42,18 @@ class OpenRouterProvider extends AIProvider {
    * Không log API key hoặc nội dung prompt đầy đủ.
    */
   async _callChatCompletions(messages, extraOptions = {}) {
-    if (!this.apiKey) {
-      throw new Error("AI_API_KEY chưa được cấu hình");
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.requestTimeoutMs);
-
-    let response;
-    try {
-      response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: this._buildHeaders(),
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          ...extraOptions,
-        }),
-        signal: controller.signal,
-      });
-    } catch (err) {
-      if (err.name === "AbortError") {
-        throw new Error(`AI request timeout sau ${this.requestTimeoutMs}ms`);
-      }
-      throw new Error(`AI provider network error: ${err.message}`);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      let detail = `status ${response.status}`;
-      try {
-        const errBody = await response.json();
-        if (errBody?.error?.message) {
-          detail += `: ${errBody.error.message}`;
-        }
-      } catch {
-        // ignore parse error khi đọc error body
-      }
-      throw new Error(`AI provider request failed với ${detail}`);
-    }
-
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error("AI provider returned invalid JSON response");
-    }
-
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("AI provider returned empty content");
-    }
-
-    const usage = data.usage
-      ? {
-          inputTokens: data.usage.prompt_tokens ?? null,
-          outputTokens: data.usage.completion_tokens ?? null,
-          totalTokens: data.usage.total_tokens ?? null,
-        }
-      : null;
-
-    return { content, usage };
+    return executeChatCompletionsRequest({
+      provider: "openrouter",
+      apiKey: this.apiKey,
+      url: `${this.baseUrl}/chat/completions`,
+      headers: this._buildHeaders(),
+      body: {
+        model: this.model,
+        messages,
+        ...extraOptions,
+      },
+      requestTimeoutMs: this.requestTimeoutMs,
+    });
   }
 
   async askCoach({ message, context, userContext } = {}) {
@@ -202,25 +154,16 @@ Schema JSON output bắt buộc:
       { role: "user", content: userParts.filter(Boolean).join("\n\n") },
     ];
 
-    const { content, usage } = await this._callChatCompletions(messages, {
-      response_format: { type: "json_object" },
-    });
-
-    const stripped = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-
-    let plan;
-    try {
-      plan = JSON.parse(stripped);
-    } catch {
-      throw new Error("AI provider returned invalid JSON cho workout plan");
-    }
-
-    return {
-      plan,
-      usage,
-      provider: "openrouter",
-      model: this.model,
-    };
+    return requestWorkoutPlanJson(
+      (callMessages, extraOptions) => this._callChatCompletions(callMessages, extraOptions),
+      messages,
+      {
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      },
+      "openrouter",
+      this.model,
+    );
   }
 }
 

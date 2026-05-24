@@ -6,6 +6,7 @@ import {
   ValidationError,
 } from "../errors/AppError.js";
 import { createAIProvider } from "../integrations/ai/aiProviderFactory.js";
+import { AIProviderError, truncateForLog } from "../integrations/ai/aiProviderError.js";
 import { WORKOUT_STATUS } from "../utils/workoutStatus.js";
 
 const AVAILABLE_EXERCISES_LIMIT = 120;
@@ -64,6 +65,44 @@ const MUSCLE_SYNONYMS = {
 function truncateError(err) {
   const msg = err?.message || String(err);
   return msg.slice(0, ERROR_MESSAGE_MAX_LENGTH);
+}
+
+function logProviderFailure(context, err) {
+  if (err instanceof AIProviderError) {
+    console.error(`[AI] ${context} failed`, {
+      provider: err.provider,
+      status: err.status,
+      code: err.code,
+      retryAfter: err.retryAfter,
+      providerMessage: err.details?.providerMessage,
+    });
+    return;
+  }
+  console.error(`[AI] ${context} failed`, {
+    message: truncateForLog(err?.message || String(err), 300),
+  });
+}
+
+function formatErrorForDb(err) {
+  if (err instanceof AIProviderError) {
+    const parts = [`[${err.code}]`, err.message];
+    if (err.retryAfter != null) {
+      parts.push(`retryAfter=${err.retryAfter}`);
+    }
+    return truncateError({ message: parts.join(" ") });
+  }
+  return truncateError(err);
+}
+
+function mapProviderErrorToAppError(err) {
+  if (err instanceof AIProviderError) {
+    const statusCode =
+      err.code === "AI_PROVIDER_UNAVAILABLE" || err.code === "AI_PROVIDER_RATE_LIMITED"
+        ? 503
+        : 502;
+    return new AppError(err.publicMessage, statusCode);
+  }
+  return new AppError("Không thể xử lý yêu cầu AI lúc này", 502);
 }
 
 /** Sanitize payload trước khi lưu log — loại bỏ field có thể nhạy cảm */
@@ -523,6 +562,7 @@ class AIRecommendationService {
         userContext,
       });
     } catch (err) {
+      logProviderFailure("askCoach", err);
 
       try {
         await db.AiRequestLog.create({
@@ -531,16 +571,16 @@ class AIRecommendationService {
           input: sanitizedInput,
           output: null,
           status: "failed",
-          provider: null,
+          provider: err instanceof AIProviderError ? err.provider : null,
           model: null,
           input_tokens: null,
           output_tokens: null,
-          error_message: truncateError(err),
+          error_message: formatErrorForDb(err),
         });
       } catch {
-        console.error("Lỗi lưu log thành công", err);
+        console.error("Lỗi lưu ai_request_log", err);
       }
-      throw new AppError("Không thể xử lý yêu cầu AI lúc này", 502);
+      throw mapProviderErrorToAppError(err);
     }
 
     // Lưu log thành công
@@ -647,6 +687,8 @@ class AIRecommendationService {
         userContext,
       });
     } catch (err) {
+      logProviderFailure("generateWorkoutPlan", err);
+
       try {
         await db.AiRequestLog.create({
           user_id: userId,
@@ -654,16 +696,16 @@ class AIRecommendationService {
           input: sanitizedInput,
           output: null,
           status: "failed",
-          provider: null,
+          provider: err instanceof AIProviderError ? err.provider : null,
           model: null,
           input_tokens: null,
           output_tokens: null,
-          error_message: truncateError(err),
+          error_message: formatErrorForDb(err),
         });
       } catch {
         // Lỗi log không được che lỗi gốc
       }
-      throw new AppError("Không thể xử lý yêu cầu AI lúc này", 502);
+      throw mapProviderErrorToAppError(err);
     }
 
     // Sanitize plan — throw controlled error nếu plan invalid
