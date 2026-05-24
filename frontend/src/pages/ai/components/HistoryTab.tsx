@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, History } from 'lucide-react'
 import { useAiRecommendations } from '@/hooks/ai/useAiRecommendations'
 import { useAiRecommendationDetail } from '@/hooks/ai/useAiRecommendationDetail'
 import { useApplyAiRecommendation } from '@/hooks/ai/useApplyAiRecommendation'
-import { getErrorMessage } from '@/lib/utils'
+import { getAiFriendlyErrorMessage } from '@/lib/aiError'
 import type {
   AiGeneratedExercise,
   AiGeneratedPlan,
@@ -157,6 +157,7 @@ export function HistoryTab() {
       {recommendationsQuery.isError && (
         <ErrorState
           error={recommendationsQuery.error}
+          message={getAiFriendlyErrorMessage(recommendationsQuery.error)}
           onRetry={() => recommendationsQuery.refetch()}
         />
       )}
@@ -209,7 +210,7 @@ export function HistoryTab() {
               <div className="flex gap-3 items-start">
                 <AlertCircle size={18} className="text-danger shrink-0 mt-0.5" aria-hidden />
                 <p className="text-sm text-danger" role="alert">
-                  {getErrorMessage(detailQuery.error)}
+                  {getAiFriendlyErrorMessage(detailQuery.error)}
                 </p>
               </div>
             </CardBody>
@@ -323,7 +324,7 @@ export function HistoryTab() {
                   <div className="flex gap-3 items-start">
                     <AlertCircle size={18} className="text-danger shrink-0 mt-0.5" aria-hidden />
                     <p className="text-sm text-danger" role="alert">
-                      {getErrorMessage(applyAiRecommendation.error)}
+                      {getAiFriendlyErrorMessage(applyAiRecommendation.error)}
                     </p>
                   </div>
                 </CardBody>

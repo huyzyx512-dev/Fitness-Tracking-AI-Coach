@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { useAskCoach } from '@/hooks/ai/useAskCoach'
-import { getErrorMessage } from '@/lib/utils'
+import { getAiFriendlyErrorMessage } from '@/lib/aiError'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -83,7 +83,7 @@ export function AskCoachTab() {
             <div className="flex gap-3 items-start">
               <AlertCircle size={18} className="text-danger shrink-0 mt-0.5" aria-hidden />
               <p className="text-sm text-danger" role="alert">
-                {getErrorMessage(askCoach.error)}
+                {getAiFriendlyErrorMessage(askCoach.error)}
               </p>
             </div>
           </CardBody>

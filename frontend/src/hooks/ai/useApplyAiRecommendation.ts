@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { aiApi } from '@/api/ai.api'
 import { QUERY_KEYS } from '@/lib/constants'
-import { getErrorMessage } from '@/lib/utils'
+import { getAiFriendlyErrorMessage } from '@/lib/aiError'
 import type { AiApplyRecommendationRequest } from '@/types/ai.types'
 
 type ApplyAiRecommendationVariables = {
@@ -23,7 +23,7 @@ export function useApplyAiRecommendation() {
       toast.success(data.message || 'Áp dụng kế hoạch AI thành công')
     },
     onError: (error: unknown) => {
-      toast.error(getErrorMessage(error))
+      toast.error(getAiFriendlyErrorMessage(error))
     },
   })
 }

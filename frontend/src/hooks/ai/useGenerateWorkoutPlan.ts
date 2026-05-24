@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { aiApi } from '@/api/ai.api'
 import { QUERY_KEYS } from '@/lib/constants'
-import { getErrorMessage } from '@/lib/utils'
+import { getAiFriendlyErrorMessage } from '@/lib/aiError'
 
 export function useGenerateWorkoutPlan() {
   const queryClient = useQueryClient()
@@ -13,7 +13,7 @@ export function useGenerateWorkoutPlan() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI_RECOMMENDATIONS() })
     },
     onError: (error: unknown) => {
-      toast.error(getErrorMessage(error))
+      toast.error(getAiFriendlyErrorMessage(error))
     },
   })
 }

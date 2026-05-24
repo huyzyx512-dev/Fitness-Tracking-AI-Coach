@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { AlertCircle, CheckCircle2, Trash2 } from 'lucide-react'
 import { useGenerateWorkoutPlan } from '@/hooks/ai/useGenerateWorkoutPlan'
 import { useApplyAiRecommendation } from '@/hooks/ai/useApplyAiRecommendation'
-import { getErrorMessage } from '@/lib/utils'
+import { getAiFriendlyErrorMessage } from '@/lib/aiError'
 import type {
   AiFitnessLevel,
   AiGeneratedExercise,
@@ -336,7 +336,7 @@ export function GeneratePlanTab() {
             <div className="flex gap-3 items-start">
               <AlertCircle size={18} className="text-danger shrink-0 mt-0.5" aria-hidden />
               <p className="text-sm text-danger" role="alert">
-                {getErrorMessage(generateWorkoutPlan.error)}
+                {getAiFriendlyErrorMessage(generateWorkoutPlan.error)}
               </p>
             </div>
           </CardBody>
@@ -568,7 +568,7 @@ export function GeneratePlanTab() {
                 <div className="flex gap-3 items-start">
                   <AlertCircle size={18} className="text-danger shrink-0 mt-0.5" aria-hidden />
                   <p className="text-sm text-danger" role="alert">
-                    {getErrorMessage(applyAiRecommendation.error)}
+                    {getAiFriendlyErrorMessage(applyAiRecommendation.error)}
                   </p>
                 </div>
               </CardBody>
