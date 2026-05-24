@@ -49,6 +49,10 @@ export const aiConfig = {
   apiKey: process.env.AI_API_KEY?.trim() || "",
   model: process.env.AI_MODEL?.trim() || aiDefaultModel,
   requestTimeoutMs: Number.isFinite(aiRequestTimeoutRaw) && aiRequestTimeoutRaw > 0 ? aiRequestTimeoutRaw : 30000,
+  openRouter: {
+    httpReferer: process.env.OPENROUTER_HTTP_REFERER?.trim() || "",
+    appTitle: process.env.OPENROUTER_APP_TITLE?.trim() || "",
+  },
 };
 
 /** Sepay payment provider configuration. All values come from env; never hardcode real bank info. */

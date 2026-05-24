@@ -1,12 +1,38 @@
 import AIProvider from "./aiProvider.js";
 
 class OpenRouterProvider extends AIProvider {
-  constructor({ apiKey = "", model = "openrouter/free", baseUrl = "https://openrouter.ai/api/v1", requestTimeoutMs = 30000 } = {}) {
+  constructor({
+    apiKey = "",
+    model = "openrouter/free",
+    baseUrl = "https://openrouter.ai/api/v1",
+    requestTimeoutMs = 30000,
+    httpReferer = "",
+    appTitle = "",
+  } = {}) {
     super();
     this.apiKey = apiKey;
     this.model = model;
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.requestTimeoutMs = requestTimeoutMs;
+    this.httpReferer = (httpReferer || "").trim();
+    this.appTitle = (appTitle || "").trim();
+  }
+
+  _buildHeaders() {
+    const headers = {
+      Authorization: `Bearer ${this.apiKey}`,
+      "Content-Type": "application/json",
+    };
+
+    if (this.httpReferer) {
+      headers["HTTP-Referer"] = this.httpReferer;
+    }
+
+    if (this.appTitle) {
+      headers["X-OpenRouter-Title"] = this.appTitle;
+    }
+
+    return headers;
   }
 
   /**
@@ -25,10 +51,7 @@ class OpenRouterProvider extends AIProvider {
     try {
       response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: this._buildHeaders(),
         body: JSON.stringify({
           model: this.model,
           messages,

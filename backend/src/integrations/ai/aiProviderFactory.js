@@ -30,6 +30,8 @@ export function createAIProvider(config = aiConfig) {
       model: config.model,
       baseUrl: config.baseUrl,
       requestTimeoutMs: config.requestTimeoutMs,
+      httpReferer: config.openRouter?.httpReferer,
+      appTitle: config.openRouter?.appTitle,
     });
   }
 
