@@ -10,6 +10,7 @@ import {
 } from "../src/utils/workoutStatus.js";
 import OpenRouterProvider from "../src/integrations/ai/openrouterProvider.js";
 import OpenAIProvider from "../src/integrations/ai/openaiProvider.js";
+import { createAIProvider } from "../src/integrations/ai/aiProviderFactory.js";
 import { AIProviderError } from "../src/integrations/ai/aiProviderError.js";
 import {
   parseJsonObjectContent,
@@ -124,6 +125,54 @@ async function withMockHttpResponses(responses, fn) {
   }
 }
 
+async function withMockFetchCapture(responseBody, fn) {
+  const originalFetch = globalThis.fetch;
+  let callCount = 0;
+  let lastRequest = null;
+
+  globalThis.fetch = async (url, init) => {
+    callCount += 1;
+    lastRequest = { url, init };
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      async json() {
+        return responseBody;
+      },
+      async text() {
+        return JSON.stringify(responseBody);
+      },
+    };
+  };
+
+  try {
+    const result = await fn();
+    return { result, callCount, lastRequest };
+  } catch (error) {
+    error.callCount = callCount;
+    error.lastRequest = lastRequest;
+    throw error;
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function assertNoFetchOnRun(fn) {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error("fetch should not be called");
+  };
+  try {
+    fn();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalled, false);
+}
+
 function assertNoSecretsInError(error) {
   const serialized = `${error.message} ${error.publicMessage ?? ""} ${JSON.stringify(error.details ?? {})}`;
   assert.ok(!/Bearer\s+/i.test(serialized));
@@ -203,6 +252,72 @@ const tests = [
     },
   },
   {
+    name: "createAIProvider disabled trả null, không gọi fetch",
+    run: () => {
+      assertNoFetchOnRun(() => {
+        const provider = createAIProvider({
+          enabled: false,
+          provider: "openrouter",
+          apiKey: "dummy-openrouter-key",
+        });
+        assert.equal(provider, null);
+      });
+    },
+  },
+  {
+    name: "createAIProvider openrouter tạo OpenRouterProvider",
+    run: () => {
+      assertNoFetchOnRun(() => {
+        const provider = createAIProvider({
+          enabled: true,
+          provider: "openrouter",
+          apiKey: "dummy-openrouter-key",
+          model: "openrouter/free",
+          baseUrl: "https://openrouter.ai/api/v1",
+          requestTimeoutMs: 30000,
+          openRouter: { httpReferer: "", appTitle: "" },
+        });
+        assert.ok(provider instanceof OpenRouterProvider);
+      });
+    },
+  },
+  {
+    name: "createAIProvider openai tạo OpenAIProvider",
+    run: () => {
+      assertNoFetchOnRun(() => {
+        const provider = createAIProvider({
+          enabled: true,
+          provider: "openai",
+          apiKey: "dummy-openai-key",
+          model: "gpt-4o-mini",
+          baseUrl: "https://api.openai.com/v1",
+          requestTimeoutMs: 30000,
+        });
+        assert.ok(provider instanceof OpenAIProvider);
+      });
+    },
+  },
+  {
+    name: "createAIProvider unsupported provider throw rõ",
+    run: () => {
+      assertNoFetchOnRun(() => {
+        assert.throws(
+          () =>
+            createAIProvider({
+              enabled: true,
+              provider: "unsupported-test-provider",
+              apiKey: "dummy",
+            }),
+          (err) => {
+            assert.match(err.message, /không được hỗ trợ/);
+            assert.match(err.message, /unsupported-test-provider/);
+            return true;
+          },
+        );
+      });
+    },
+  },
+  {
     name: "generateWorkoutPlan valid JSON không retry",
     run: async () => {
       const provider = new OpenRouterProvider({ apiKey: "test-key", model: "openrouter/free" });
@@ -241,16 +356,27 @@ const tests = [
     name: "OpenRouter missing API key chỉ lỗi khi gọi AI",
     run: async () => {
       const provider = new OpenRouterProvider({ apiKey: "" });
-      await assert.rejects(
-        () => provider.askCoach({ message: "hello" }),
-        (err) => {
-          assert.ok(err instanceof AIProviderError);
-          assert.equal(err.code, "AI_MISSING_API_KEY");
-          assert.equal(err.provider, "openrouter");
-          assertNoSecretsInError(err);
-          return true;
-        },
-      );
+      const originalFetch = globalThis.fetch;
+      let fetchCalled = false;
+      globalThis.fetch = async () => {
+        fetchCalled = true;
+        throw new Error("fetch should not be called");
+      };
+      try {
+        await assert.rejects(
+          () => provider.askCoach({ message: "hello" }),
+          (err) => {
+            assert.ok(err instanceof AIProviderError);
+            assert.equal(err.code, "AI_MISSING_API_KEY");
+            assert.equal(err.provider, "openrouter");
+            assertNoSecretsInError(err);
+            return true;
+          },
+        );
+        assert.equal(fetchCalled, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
       assert.doesNotThrow(() => new OpenAIProvider({ apiKey: "" }));
     },
   },
@@ -326,6 +452,76 @@ const tests = [
       assert.equal(thrown.code, "AI_PROVIDER_RATE_LIMITED");
       assert.equal(thrown.retryAfter, 60);
       assert.equal(thrown.retryable, false);
+      assertNoSecretsInError(thrown);
+    },
+  },
+  {
+    name: "OpenRouter askCoach mock fetch success trả provider/model đúng",
+    run: async () => {
+      const provider = new OpenRouterProvider({
+        apiKey: "test-key",
+        model: "openrouter/test-model",
+        baseUrl: "https://openrouter.ai/api/v1",
+      });
+      const mockResponse = {
+        choices: [{ message: { content: "Xin chào" } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        model: "openrouter/test-model",
+      };
+      const { result, callCount, lastRequest } = await withMockFetchCapture(mockResponse, () =>
+        provider.askCoach({ message: "hello" }),
+      );
+
+      assert.equal(callCount, 1);
+      assert.equal(result.answer, "Xin chào");
+      assert.equal(result.provider, "openrouter");
+      assert.equal(result.model, "openrouter/test-model");
+      assert.equal(lastRequest.url, "https://openrouter.ai/api/v1/chat/completions");
+      assert.equal(lastRequest.init.method, "POST");
+      assert.equal(lastRequest.init.headers.Authorization, "Bearer test-key");
+      assert.equal(lastRequest.init.headers["Content-Type"], "application/json");
+    },
+  },
+  {
+    name: "OpenRouter gửi attribution headers khi có httpReferer và appTitle",
+    run: async () => {
+      const provider = new OpenRouterProvider({
+        apiKey: "test-key",
+        model: "openrouter/test-model",
+        httpReferer: "https://fittrack.example.com",
+        appTitle: "FitTrack Test",
+      });
+      const mockResponse = {
+        choices: [{ message: { content: "OK" } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      };
+      const { callCount, lastRequest } = await withMockFetchCapture(mockResponse, () =>
+        provider.askCoach({ message: "hello" }),
+      );
+
+      assert.equal(callCount, 1);
+      assert.equal(lastRequest.init.headers["HTTP-Referer"], "https://fittrack.example.com");
+      assert.equal(lastRequest.init.headers["X-OpenRouter-Title"], "FitTrack Test");
+    },
+  },
+  {
+    name: "OpenRouter không gửi attribution headers rỗng",
+    run: async () => {
+      const provider = new OpenRouterProvider({
+        apiKey: "test-key",
+        httpReferer: "",
+        appTitle: "",
+      });
+      const mockResponse = {
+        choices: [{ message: { content: "OK" } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      };
+      const { lastRequest } = await withMockFetchCapture(mockResponse, () =>
+        provider.askCoach({ message: "hello" }),
+      );
+
+      assert.ok(!("HTTP-Referer" in lastRequest.init.headers));
+      assert.ok(!("X-OpenRouter-Title" in lastRequest.init.headers));
     },
   },
   {

@@ -26,7 +26,7 @@ export default function CreateExercisePage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-5 animate-fade-up">
+    <div className="mx-auto w-full max-w-2xl space-y-5 animate-fade-up">
       <PageHeader title="TẠO BÀI TẬP" description="Thêm bài tập mới vào thư viện" />
       <ExerciseForm
         onSubmit={handleSubmit}

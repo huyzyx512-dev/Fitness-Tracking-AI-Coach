@@ -37,16 +37,6 @@ class TokenService {
     return token;
   }
 
-  static async revokeRefreshToken(token) {
-    if (!token) {
-      return 0;
-    }
-
-    return db.RefreshToken.destroy({
-      where: { token },
-    });
-  }
-
   static async revokeAllUserSessions(userId) {
     await db.RefreshToken.destroy({
       where: { userId },
@@ -54,7 +44,6 @@ class TokenService {
   }
 
   static async findRefreshToken(token) {
-
     if (!token) {
       return null;
     }
@@ -63,7 +52,9 @@ class TokenService {
     if (!refreshToken) return null;
 
     if (refreshToken.expiryDate < new Date()) {
-      this.revokeRefreshToken(token);
+      db.RefreshToken.destroy({
+        where: { token },
+      });
       return null;
     }
 
@@ -79,4 +70,3 @@ class TokenService {
 }
 
 export default TokenService;
-

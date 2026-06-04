@@ -60,7 +60,7 @@ export default function ProfilePage() {
   })
 
   return (
-    <div className="max-w-2xl space-y-6 animate-fade-up">
+    <div className="mx-auto w-full max-w-2xl space-y-6 animate-fade-up">
       <PageHeader title="HỒ SƠ" description="Quản lý thông tin cá nhân" />
 
       {/* User identity card */}

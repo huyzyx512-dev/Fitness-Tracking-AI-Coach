@@ -31,7 +31,6 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
-// FIX: Allow logout via refresh cookie even if access token is expired/missing
 export const logout = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken;
 
