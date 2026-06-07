@@ -2,11 +2,13 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import db from "../models/index.js";
 import { appConfig } from "../config/env.js";
+import { authLog } from "../utils/authDebugLog.js";
+import { tr } from "zod/v4/locales";
 
 class TokenService {
-  static createAccessToken(user) {
+  static createAccessToken(userId, tokenVersion) {
     return jwt.sign(
-      { id: user.id, tokenVersion: user.tokenVersion },
+      { id: userId, tokenVersion: tokenVersion },
       appConfig.accessTokenSecret,
       { expiresIn: "15m" },
     );
@@ -18,25 +20,21 @@ class TokenService {
 
   static async createRefreshSession(user) {
     const token = this.generateRefreshToken();
+    const expiryDate = new Date(Date.now() + appConfig.refreshTokenTtlMs);
 
     await db.RefreshToken.create({
       token,
-      expiryDate: new Date(Date.now() + appConfig.refreshTokenTtlMs),
+      expiryDate,
       userId: user.id,
       tokenVersion: user.tokenVersion,
     });
 
-    return token;
-  }
-
-  static async revokeRefreshToken(token) {
-    if (!token) {
-      return 0;
-    }
-
-    return db.RefreshToken.destroy({
-      where: { token },
+    authLog("refresh_session_stored", {
+      userId: user.id,
+      expiryIso: expiryDate.toISOString(),
     });
+
+    return token;
   }
 
   static async revokeAllUserSessions(userId) {
@@ -44,7 +42,31 @@ class TokenService {
       where: { userId },
     });
   }
+
+  static async findRefreshToken(token) {
+    if (!token) {
+      return null;
+    }
+
+    const refreshToken = await db.RefreshToken.findOne({ where: { token } });
+    if (!refreshToken) return null;
+
+    if (refreshToken.expiryDate < new Date()) {
+      db.RefreshToken.destroy({
+        where: { token },
+      });
+      return null;
+    }
+
+    const user = await db.User.findOne({ where: { id: refreshToken.userId } });
+    if (!user) return null;
+
+    if (refreshToken.tokenVersion !== user.tokenVersion) {
+      return null;
+    }
+
+    return { userId: user.id, tokenVersion: user.tokenVersion };
+  }
 }
 
 export default TokenService;
-

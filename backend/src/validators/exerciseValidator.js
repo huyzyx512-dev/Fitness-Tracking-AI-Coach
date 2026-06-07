@@ -1,18 +1,34 @@
 import { z } from "zod";
 import { nonNegativeInt, positiveInt } from "./common.js";
 
+const optionalUrl = (message) =>
+  z
+    .union([z.string().trim().url(message), z.literal(""), z.null()])
+    .transform((v) => (v === "" ? null : v))
+    .optional();
+
 export const exerciseSchema = z.object({
   name: z.string().trim().min(1, "Vui lòng nhập tên bài tập"),
-  description: z.string().trim().min(1, "Vui lòng nhập mô tả bài tập"),
-  category_id: positiveInt("category_id"),
-  muscle_group_ids: z
-    .array(positiveInt("muscle_group_id"))
-    .min(1, "Vui lòng chọn ít nhất một nhóm cơ"),
-  difficulty_level: z.enum(["cơ bản", "trung bình", "nâng cao"]).default("cơ bản"),
-  equipment: z.string().trim().min(1, "Vui lòng nhập tên dụng cụ").default("không"),
-  met_value: z.coerce.number().positive("Giá trị MET phải lớn hơn 0").default(3),
-  video_url: z.string().trim().url("Đường dẫn video không hợp lệ").nullable().optional(),
-  thumbnail_url: z.string().trim().url("Đường dẫn hình thu nhỏ không hợp lệ").nullable().optional(),
+  /* Các field không bắt buộc có thể bỏ trống khi tạo mới */
+  description: z.string().trim().min(1, "Vui lòng nhập mô tả bài tập").optional(),
+  category_id: positiveInt("category_id").optional(),
+  muscle_group_ids: z.array(positiveInt("muscle_group_id")).optional(),
+  /* API nhận tiếng Việt; service sẽ map sang enum DB (beginner/intermediate/advanced) */
+  difficulty_level: z
+    .enum([
+      "cơ bản",
+      "trung bình",
+      "nâng cao",
+      "beginner",
+      "intermediate",
+      "advanced",
+    ])
+    .default("cơ bản"),
+  equipment: z.string().trim().min(1, "Vui lòng nhập tên dụng cụ").optional(),
+  met_value: z.coerce.number().positive("Giá trị MET phải lớn hơn 0").optional(),
+  /* Nếu có nhập thì phải là URL, còn trống thì bỏ qua */
+  video_url: optionalUrl("Đường dẫn video không hợp lệ"),
+  thumbnail_url: optionalUrl("Đường dẫn hình thu nhỏ không hợp lệ"),
 });
 
 export const exerciseUpdateSchema = exerciseSchema.partial().refine(

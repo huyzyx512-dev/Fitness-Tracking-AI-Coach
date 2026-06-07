@@ -1,3 +1,5 @@
+export { AdminLayout } from './AdminLayout'
+export { AdminSidebar } from './AdminSidebar'
 export { AppLayout } from './AppLayout'
 export { AuthLayout } from './AuthLayout'
 export { Sidebar } from './Sidebar'

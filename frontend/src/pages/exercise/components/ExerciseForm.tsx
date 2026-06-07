@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,33 +13,47 @@ import { useExerciseList } from '@/hooks/exercise/useExerciseList'
 import { ROUTES, DIFFICULTY_LABELS, DIFFICULTY } from '@/lib/constants'
 import type { Exercise, CreateExercisePayload } from '@/types/exercise.types'
 
-/* Schema mirrors backend exerciseSchema exactly */
+/* Create Exercise:
+   - Field có dấu * là bắt buộc
+   - Field không có * có thể bỏ trống
+   - Nếu có nhập URL thì phải hợp lệ */
+const optionalInt = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().int().positive()])
+  .optional()
+
+const optionalPositiveNumber = z
+  .union([z.literal('').transform(() => undefined), z.coerce.number().positive('Giá trị MET phải lớn hơn 0')])
+  .optional()
+
+const optionalText = (msg: string) => z.string().trim().min(1, msg).optional().or(z.literal(''))
+
 const schema = z.object({
   name:             z.string().trim().min(1, 'Vui lòng nhập tên bài tập').max(100),
-  description:      z.string().trim().min(1, 'Vui lòng nhập mô tả bài tập'),
-  category_id:      z.coerce.number({ invalid_type_error: 'Vui lòng chọn nhóm bài tập' })
-                      .int().positive('Vui lòng chọn nhóm bài tập'),
-  muscle_group_ids: z.array(z.number()).min(1, 'Vui lòng chọn ít nhất một nhóm cơ'),
+  description:      optionalText('Vui lòng nhập mô tả bài tập'),
+  category_id:      optionalInt,
+  muscle_group_ids: z.array(z.number()).optional(),
   difficulty_level: z.enum(['cơ bản', 'trung bình', 'nâng cao'] as const),
-  equipment:        z.string().trim().min(1, 'Vui lòng nhập dụng cụ'),
-  met_value:        z.coerce.number().positive('Giá trị MET phải lớn hơn 0').optional(),
+  equipment:        optionalText('Vui lòng nhập dụng cụ'),
+  met_value:        optionalPositiveNumber,
   video_url:        z.string().url('URL không hợp lệ').optional().or(z.literal('')),
   thumbnail_url:    z.string().url('URL không hợp lệ').optional().or(z.literal('')),
 })
 
-export type ExerciseFormValues = z.infer<typeof schema>
+type ExerciseFormInput = z.input<typeof schema>
+export type ExerciseFormValues = z.output<typeof schema>
 
 const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label]) => ({ value, label }))
 
 interface ExerciseFormProps {
   defaultValues?: Partial<ExerciseFormValues>
-  onSubmit:       (values: CreateExercisePayload) => void
-  isLoading:      boolean
-  submitLabel?:   string
+  onSubmit: (values: CreateExercisePayload, videoFile: File | null) => void | Promise<void>
+  isLoading: boolean
+  submitLabel?: string
 }
 
 export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Lưu bài tập' }: ExerciseFormProps) {
   const navigate = useNavigate()
+  const [videoFile, setVideoFile] = useState<File | null>(null)
   const { data: exercises } = useExerciseList()
 
   /* Derive unique categories & muscle groups from exercise list */
@@ -60,11 +74,10 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
   const {
     register,
     handleSubmit,
-    control,
     watch,
     setValue,
     formState: { errors, isDirty },
-  } = useForm<ExerciseFormValues>({
+  } = useForm<ExerciseFormInput>({
     resolver: zodResolver(schema),
     defaultValues: { difficulty_level: DIFFICULTY.CO_BAN, muscle_group_ids: [], ...defaultValues },
   })
@@ -86,7 +99,13 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
 
   return (
     <Card>
-      <form onSubmit={handleSubmit((v) => onSubmit(v as unknown as CreateExercisePayload))} className="space-y-5">
+      <form
+        onSubmit={handleSubmit(async (v) => {
+          const payload = schema.parse(v) as CreateExercisePayload
+          await onSubmit(payload, videoFile)
+        })}
+        className="space-y-5"
+      >
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
             label="Tên bài tập"
@@ -108,7 +127,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
           label="Mô tả"
           placeholder="Hướng dẫn kỹ thuật, lưu ý..."
           error={errors.description?.message}
-          required
           {...register('description')}
         />
 
@@ -118,14 +136,12 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
             options={categories}
             placeholder="Chọn nhóm"
             error={errors.category_id?.message}
-            required
             {...register('category_id')}
           />
           <Input
             label="Thiết bị"
             placeholder="Barbell, Dumbbell, Cable..."
             error={errors.equipment?.message}
-            required
             {...register('equipment')}
           />
         </div>
@@ -140,28 +156,45 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
           {...register('met_value')}
         />
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-4">
+          <p className="text-sm font-medium text-foreground/90">Video</p>
+          <p className="text-xs text-muted leading-relaxed">
+            Có thể dán link ngoài (YouTube, v.v.) hoặc chọn file video (MP4, WebM…) để tải lên sau khi lưu bài tập. File
+            sẽ được gửi lên máy chủ khi bạn bấm &quot;{submitLabel}&quot;.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input
+              label="Video URL"
+              type="url"
+              placeholder="https://youtube.com/..."
+              error={errors.video_url?.message}
+              {...register('video_url')}
+            />
+            <Input
+              label="Thumbnail URL"
+              type="url"
+              placeholder="https://..."
+              error={errors.thumbnail_url?.message}
+              {...register('thumbnail_url')}
+            />
+          </div>
           <Input
-            label="Video URL"
-            type="url"
-            placeholder="https://youtube.com/..."
-            error={errors.video_url?.message}
-            {...register('video_url')}
-          />
-          <Input
-            label="Thumbnail URL"
-            type="url"
-            placeholder="https://..."
-            error={errors.thumbnail_url?.message}
-            {...register('thumbnail_url')}
+            label="File video (tuỳ chọn)"
+            type="file"
+            accept="video/*"
+            className="min-h-11 py-0.5 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/30"
+            helperText={
+              videoFile
+                ? `Đã chọn: ${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(2)} MB)`
+                : undefined
+            }
+            onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
           />
         </div>
 
         {/* Muscle group multi-select */}
         <div>
-          <p className="text-sm font-medium text-foreground/80 mb-2">
-            Nhóm cơ <span className="text-danger">*</span>
-          </p>
+          <p className="text-sm font-medium text-foreground/80 mb-2">Nhóm cơ</p>
           {muscleGroups.length === 0 ? (
             <p className="text-xs text-muted italic">
               Chưa có dữ liệu nhóm cơ — hãy thêm bài tập khác trước để hệ thống nhận diện.
@@ -185,11 +218,6 @@ export function ExerciseForm({ defaultValues, onSubmit, isLoading, submitLabel =
               ))}
             </div>
           )}
-          {errors.muscle_group_ids && (
-            <p className="text-xs text-danger mt-1" role="alert">
-              {errors.muscle_group_ids.message}
-            </p>
-          )}
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -205,7 +233,7 @@ export function exerciseToFormValues(exercise: Exercise): ExerciseFormValues {
   return {
     name:             exercise.name,
     description:      exercise.description ?? '',
-    category_id:      exercise.category_id ?? (0 as unknown as number),
+    category_id:      exercise.category_id ?? (undefined as unknown as number),
     difficulty_level: exercise.difficulty_level,
     equipment:        exercise.equipment ?? '',
     met_value:        exercise.met_value,

@@ -5,28 +5,28 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const shared = {
-  dialect: process.env.DB_DIALECT || "mysql",
-  host: process.env.DB_HOST || "127.0.0.1",
-  port: Number(process.env.DB_PORT || 3306),
+  dialect: process.env.MYSQL_DIALECT || "mysql",
+  host: process.env.MYSQL_HOST || "127.0.0.1",
+  port: Number(process.env.MYSQL_PORT || 3306),
 };
 
 export default {
   development: {
     ...shared,
-    database: process.env.DB_NAME || "fitness_tracker",
-    username: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
+    database: process.env.MYSQL_DATABASE || "fitness_tracker",
+    username: process.env.MYSQL_USER || "root",
+    password: process.env.MYSQL_PASSWORD || "",
   },
   test: {
     ...shared,
-    database: process.env.DB_TEST_NAME || "fitness_tracker_test",
-    username: process.env.DB_TEST_USER || process.env.DB_USER || "root",
-    password: process.env.DB_TEST_PASSWORD || process.env.DB_PASSWORD || "",
+    database: process.env.MYSQL_TEST_DATABASE || "fitness_tracker_test",
+    username: process.env.MYSQL_TEST_USER || process.env.MYSQL_USER || "root",
+    password: process.env.MYSQL_TEST_PASSWORD || process.env.MYSQL_PASSWORD || "",
   },
   production: {
     use_env_variable: "DATABASE_URL",
-    dialect: process.env.DB_DIALECT || "mysql",
+    dialect: process.env.MYSQL_DIALECT || "mysql",
     dialectOptions:
-      process.env.DB_SSL === "true" ? { ssl: { require: true } } : {},
+      process.env.MYSQL_SSL === "true" ? { ssl: { require: true } } : {},
   },
 };

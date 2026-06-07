@@ -33,6 +33,10 @@ export interface Exercise {
   difficulty_level: DifficultyLevel
   equipment: string | null
   met_value: number
+  /** Optional: when API provides planned duration per exercise */
+  duration_minutes?: number | null
+  /** Optional: when API provides estimated calories per exercise */
+  calories_burned?: number | null
   video_url: string | null
   thumbnail_url: string | null
   category: Category | null
@@ -46,11 +50,11 @@ export interface Exercise {
 
 export interface CreateExercisePayload {
   name: string
-  description: string         // required by backend
-  category_id: number         // required by backend
-  muscle_group_ids: number[]  // required by backend, min 1
+  description?: string
+  category_id?: number
+  muscle_group_ids?: number[]
   difficulty_level: DifficultyLevel
-  equipment: string           // required by backend
+  equipment?: string
   met_value?: number
   video_url?: string | null
   thumbnail_url?: string | null
@@ -62,6 +66,11 @@ export type UpdateExercisePayload = Partial<CreateExercisePayload>
 
 export interface ExerciseListResponse {
   exercises: Exercise[]
+}
+
+export interface ExerciseListFilters {
+  muscle_group_ids?: number[]
+  muscle_match?: 'any' | 'all'
 }
 
 export interface ExerciseResponse {

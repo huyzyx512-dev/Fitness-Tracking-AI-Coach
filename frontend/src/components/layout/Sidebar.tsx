@@ -1,7 +1,8 @@
-import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, Activity, ClipboardList, User, X, Zap, Shield, Sparkles, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ROUTES } from '@/lib/constants'
+import { ROUTES, ROLE } from '@/lib/constants'
 import { useUIStore } from '@/store/ui.store'
+import { useAuthStore } from '@/store/auth.store'
 import { SidebarItem } from './SidebarItem'
 
 const NAV_ITEMS = [
@@ -9,6 +10,8 @@ const NAV_ITEMS = [
   { to: ROUTES.WORKOUTS,   label: 'Buổi tập',     icon: <Dumbbell       size={18} /> },
   { to: ROUTES.EXERCISES,  label: 'Bài tập',      icon: <Activity       size={18} /> },
   { to: ROUTES.LOGS,       label: 'Nhật ký',      icon: <ClipboardList  size={18} /> },
+  { to: ROUTES.AI_COACH,   label: 'AI Coach',     icon: <Bot            size={18} /> },
+  { to: ROUTES.BILLING,    label: 'Gói đăng ký',  icon: <Sparkles       size={18} /> },
   { to: ROUTES.PROFILE,    label: 'Hồ sơ',        icon: <User           size={18} /> },
 ]
 
@@ -18,6 +21,8 @@ interface SidebarProps {
 
 function Sidebar({ className }: SidebarProps) {
   const { sidebarOpen, setSidebarOpen } = useUIStore()
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role?.name === ROLE.ADMIN
 
   return (
     <>
@@ -47,7 +52,7 @@ function Sidebar({ className }: SidebarProps) {
               <Zap size={16} className="text-white" fill="white" />
             </div>
             <span
-              className="text-2xl font-display text-foreground tracking-wider"
+              className="text-2xl font-display text-foreground tracking-normal"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               FITTRACK
@@ -77,6 +82,16 @@ function Sidebar({ className }: SidebarProps) {
               onClick={() => setSidebarOpen(false)}
             />
           ))}
+          {isAdmin && (
+            <div className="mt-3 space-y-1 border-t border-border pt-3">
+              <SidebarItem
+                to={ROUTES.ADMIN_USERS}
+                icon={<Shield size={18} />}
+                label="Quản trị"
+                onClick={() => setSidebarOpen(false)}
+              />
+            </div>
+          )}
         </nav>
 
         {/* Bottom branding */}
