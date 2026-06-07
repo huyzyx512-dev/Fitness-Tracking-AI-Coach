@@ -2,12 +2,15 @@ import bcrypt from "bcrypt";
 import db from "../models/index.js";
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
 } from "../errors/AppError.js";
 import TokenService from "./tokenService.js";
+import { authLog, maskEmail, tokenTail } from "../utils/authDebugLog.js";
+import { ADMIN_AUDIT_ACTIONS, recordAdminAudit } from "./adminAuditLogService.js";
 
-const VALID_GENDERS = ["nam", "nữ", "khác"];
+const VALID_GENDERS = ["male", "female", "other"];
 
 function parseGender(value) {
   const normalized = value?.toLowerCase();
@@ -28,7 +31,7 @@ class AuthService {
 
     const gender = parseGender(payload.gender);
     if (!gender) {
-      throw new ConflictError("Giới tính không hợp lệ. Chỉ chấp nhận: nam, nữ, khác");
+      throw new ConflictError("Giới tính không hợp lệ. Chỉ chấp nhận: male, female, other");
     }
 
     const password_hash = await bcrypt.hash(payload.password, 10);
@@ -44,7 +47,7 @@ class AuthService {
         weight: payload.weight,
         gender,
       });
-    
+
       console.log("User created successfully");
     } catch (err) {
       console.error("Create user error:", err);
@@ -52,11 +55,11 @@ class AuthService {
     }
   }
 
-  static async login({ email, password }) {
-    console.log("User: ", email);
+  static async login({ email, password }, req) {
+    authLog("login_attempt", { email: maskEmail(email) });
+
     const user = await db.User.findOne({ where: { email } });
     if (!user) {
-      console.log("User not found");
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
@@ -65,43 +68,54 @@ class AuthService {
       throw new UnauthorizedError("Email hoặc mật khẩu không chính xác");
     }
 
-    const accessToken = TokenService.createAccessToken(user);
+    if (Number(user.tokenVersion) < 0) {
+      throw new ForbiddenError("Tài khoản đã bị khóa");
+    }
+
+    const accessToken = TokenService.createAccessToken(user.id, user.tokenVersion);
+
     const refreshToken = await TokenService.createRefreshSession(user);
+
+    authLog("access_issued", {
+      userId: user.id,
+      ...(tokenTail(accessToken) ? { accessTail: tokenTail(accessToken) } : {}),
+    });
+    authLog("refresh_session_created", {
+      userId: user.id,
+      ...(tokenTail(refreshToken) ? { refreshTail: tokenTail(refreshToken) } : {}),
+    });
+
+    await recordAdminAudit({
+      actorUserId: user.id,
+      targetUserId: user.id,
+      action: ADMIN_AUDIT_ACTIONS.USER_LOGIN,
+      metadata: { email: user.email },
+      req,
+    });
 
     return {
       accessToken,
       refreshToken,
       userName: user.name,
+      userId: user.id,
     };
   }
 
   static async refreshAccessToken(token) {
-    if (!token) {
-      throw new UnauthorizedError("Vui lòng cung cấp refresh token");
-    }
-
-    const session = await db.RefreshToken.findOne({ where: { token } });
-    if (!session) {
+    const { userId, tokenVersion } = await TokenService.findRefreshToken(token);
+    if (!userId) {
       throw new UnauthorizedError("Refresh token không hợp lệ");
     }
 
-    if (session.expiryDate.getTime() < Date.now()) {
-      await TokenService.revokeRefreshToken(token);
-      throw new UnauthorizedError("Vui lòng đăng nhập lại");
-    }
-
-    const user = await db.User.findByPk(session.userId);
-    if (!user) {
-      throw new UnauthorizedError("Không tìm thấy người dùng");
-    }
-
-    if (session.tokenVersion !== user.tokenVersion) {
-      await TokenService.revokeRefreshToken(token);
-      throw new UnauthorizedError("Refresh token đã bị thu hồi");
-    }
+    const accessToken = TokenService.createAccessToken(userId, tokenVersion);
+    authLog("refresh_ok", { userId});
+    authLog("access_issued", {
+      userId,
+      ...(tokenTail(accessToken) ? { accessTail: tokenTail(accessToken) } : {}),
+    });
 
     return {
-      accessToken: TokenService.createAccessToken(user),
+      accessToken,
     };
   }
 }

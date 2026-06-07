@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { AdminLayout }  from '@/components/layout/AdminLayout'
 import { AppLayout }    from '@/components/layout/AppLayout'
 import { AuthLayout }   from '@/components/layout/AuthLayout'
 import { ProtectedRoute } from './ProtectedRoute'
+import { RoleGuard } from './RoleGuard'
 import { FullPageSpinner } from '@/components/ui/Spinner'
 import { ROUTES } from '@/lib/constants'
 
@@ -15,10 +17,18 @@ const WorkoutDetailPage  = lazy(() => import('@/pages/workout/WorkoutDetailPage'
 const CreateWorkoutPage  = lazy(() => import('@/pages/workout/CreateWorkoutPage'))
 const EditWorkoutPage    = lazy(() => import('@/pages/workout/EditWorkoutPage'))
 const ExerciseListPage   = lazy(() => import('@/pages/exercise/ExerciseListPage'))
+const ExerciseDetailPage = lazy(() => import('@/pages/exercise/ExerciseDetailPage'))
 const CreateExercisePage = lazy(() => import('@/pages/exercise/CreateExercisePage'))
 const EditExercisePage   = lazy(() => import('@/pages/exercise/EditExercisePage'))
 const LogsPage           = lazy(() => import('@/pages/logs/LogsPage'))
+const AiCoachPage        = lazy(() => import('@/pages/ai/AiCoachPage'))
 const ProfilePage        = lazy(() => import('@/pages/ProfilePage'))
+const BillingPage        = lazy(() => import('@/pages/billing/BillingPage'))
+const BillingOrderPage   = lazy(() => import('@/pages/billing/BillingOrderPage'))
+const AdminUserListPage  = lazy(() => import('@/pages/admin/users/AdminUserListPage'))
+const AdminUserDetailPage = lazy(() => import('@/pages/admin/users/AdminUserDetailPage'))
+const AdminUserCreatePage = lazy(() => import('@/pages/admin/users/AdminUserCreatePage'))
+const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'))
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage'))
 const ForbiddenPage      = lazy(() => import('@/pages/ForbiddenPage'))
 const ServerErrorPage    = lazy(() => import('@/pages/ServerErrorPage'))
@@ -104,6 +114,11 @@ export const router = createBrowserRouter([
                 handle: { breadcrumb: 'Tạo bài tập' },
               },
               {
+                path: ':id',
+                element: withSuspense(<ExerciseDetailPage />),
+                handle: { breadcrumb: 'Chi tiết' },
+              },
+              {
                 path: ':id/edit',
                 element: withSuspense(<EditExercisePage />),
                 handle: { breadcrumb: 'Chỉnh sửa' },
@@ -118,11 +133,66 @@ export const router = createBrowserRouter([
             handle: { breadcrumb: 'Nhật ký' },
           },
 
+          /* AI Coach */
+          {
+            path: ROUTES.AI_COACH,
+            element: withSuspense(<AiCoachPage />),
+            handle: { breadcrumb: 'AI Coach' },
+          },
+
           /* Profile */
           {
             path: ROUTES.PROFILE,
             element: withSuspense(<ProfilePage />),
             handle: { breadcrumb: 'Hồ sơ' },
+          },
+
+          /* Billing */
+          {
+            path: ROUTES.BILLING,
+            handle: { breadcrumb: 'Gói đăng ký' },
+            children: [
+              { index: true, element: withSuspense(<BillingPage />) },
+              {
+                path: 'orders/:id',
+                element: withSuspense(<BillingOrderPage />),
+                handle: { breadcrumb: 'Thanh toán' },
+              },
+            ],
+          },
+        ],
+      },
+
+      /* Admin shell (parallel to AppLayout) */
+      {
+        path: 'admin',
+        element: <RoleGuard roles={['ADMIN']} />,
+        handle: { breadcrumb: 'Quản trị' },
+        children: [
+          {
+            element: <AdminLayout />,
+            children: [
+              {
+                index: true,
+                element: withSuspense(<AdminDashboardPage />),
+                handle: { breadcrumb: 'Tổng quan quản trị' },
+              },
+              {
+                path: 'users',
+                element: withSuspense(<AdminUserListPage />),
+                handle: { breadcrumb: 'Quản trị người dùng' },
+              },
+              {
+                path: 'users/new',
+                element: withSuspense(<AdminUserCreatePage />),
+                handle: { breadcrumb: 'Tạo người dùng' },
+              },
+              {
+                path: 'users/:id',
+                element: withSuspense(<AdminUserDetailPage />),
+                handle: { breadcrumb: 'Chi tiết người dùng' },
+              },
+            ],
           },
         ],
       },

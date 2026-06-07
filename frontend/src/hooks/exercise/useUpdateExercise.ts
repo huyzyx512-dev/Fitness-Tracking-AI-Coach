@@ -6,9 +6,12 @@ import { QUERY_KEYS, ROUTES } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/utils'
 import type { UpdateExercisePayload } from '@/types/exercise.types'
 
-export function useUpdateExercise(exerciseId: number) {
+type UseUpdateExerciseOptions = { skipNavigate?: boolean }
+
+export function useUpdateExercise(exerciseId: number, options?: UseUpdateExerciseOptions) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const skipNavigate = options?.skipNavigate ?? false
 
   return useMutation({
     mutationFn: (payload: UpdateExercisePayload) =>
@@ -16,7 +19,7 @@ export function useUpdateExercise(exerciseId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.EXERCISES() })
       toast.success('Cập nhật bài tập thành công!')
-      navigate(ROUTES.EXERCISES)
+      if (!skipNavigate) navigate(ROUTES.EXERCISES)
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error))

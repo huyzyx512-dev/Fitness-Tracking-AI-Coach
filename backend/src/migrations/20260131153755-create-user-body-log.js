@@ -4,7 +4,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const transaction = await queryInterface.sequelize.transaction();
     try {
-      await queryInterface.createTable('UserBodyLog', {
+      await queryInterface.createTable('user_body_log', {
         id: {
           allowNull: false,
           autoIncrement: true,
@@ -49,7 +49,7 @@ module.exports = {
       }, { transaction });
 
       // Tạo Index để query lịch sử nhanh hơn
-      await queryInterface.addIndex('UserBodyLog', ['user_id'], { transaction });
+      await queryInterface.addIndex('user_body_log', ['user_id'], { transaction });
 
       await transaction.commit();
     } catch (err) {
@@ -60,6 +60,6 @@ module.exports = {
 
   async down(queryInterface, Sequelize) {
     // Khi rollback thì drop bảng này
-    await queryInterface.dropTable('UserBodyLog');
+    await queryInterface.dropTable('user_body_log');
   }
 };

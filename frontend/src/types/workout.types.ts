@@ -40,7 +40,7 @@ export interface Workout {
 export interface CreateWorkoutPayload {
   title: string
   notes?: string
-  scheduled_at?: string
+  scheduled_at?: string | null
 }
 
 export type UpdateWorkoutPayload = Partial<CreateWorkoutPayload>

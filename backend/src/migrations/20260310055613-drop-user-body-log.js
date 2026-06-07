@@ -3,13 +3,13 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    await queryInterface.dropTable('UserBodyLog');
+    await queryInterface.dropTable('user_body_log');
   },
 
   async down (queryInterface, Sequelize) {
     const transaction = await queryInterface.sequelize.transaction();
     try {
-      await queryInterface.createTable('UserBodyLog', {
+      await queryInterface.createTable('user_body_log', {
         id: {
           allowNull: false,
           autoIncrement: true,
@@ -19,7 +19,7 @@ module.exports = {
         user_id: {
           type: Sequelize.INTEGER,
           allowNull: false,
-          references: { model: 'User', key: 'id' },
+          references: { model: 'user', key: 'id' },
           onUpdate: 'CASCADE',
           onDelete: 'CASCADE'
         },
@@ -44,7 +44,7 @@ module.exports = {
         updatedAt: { allowNull: false, type: Sequelize.DATE }
       }, { transaction });
 
-      await queryInterface.addIndex('UserBodyLog', ['user_id'], { transaction });
+      await queryInterface.addIndex('user_body_log', ['user_id'], { transaction });
       await transaction.commit();
     } catch (err) {
       await transaction.rollback();

@@ -2,12 +2,31 @@ import { z } from "zod";
 
 const isDateString = (value) => !Number.isNaN(Date.parse(value));
 
+/**
+ * scheduled_at là tuỳ chọn:
+ *   - undefined / "" / null → null
+ *   - chuỗi không rỗng phải parse được thành Date
+ * Không set giờ mặc định; luôn để DB nhận null khi user bỏ trống.
+ */
+const optionalScheduledAt = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+    return value;
+  },
+  z
+    .string()
+    .nullable()
+    .refine((value) => value === null || isDateString(value), {
+      message: "Định dạng ngày tháng không hợp lệ",
+    }),
+);
+
 export const createWorkoutSchema = z.object({
   title: z.string().trim().min(1, "Vui lòng nhập tiêu đề"),
   notes: z.string().trim().min(1, "Vui lòng nhập ghi chú"),
-  scheduled_at: z.string().min(1, "Vui lòng chọn thời gian").refine(isDateString, {
-    message: "Định dạng ngày tháng không hợp lệ",
-  }),
+  scheduled_at: optionalScheduledAt,
 });
 
 export const updateWorkoutSchema = createWorkoutSchema.partial().refine(

@@ -8,8 +8,17 @@ export const ROUTES = {
   WORKOUT_DETAIL:  (id: number | string) => `/workouts/${id}`,
   WORKOUT_EDIT:    (id: number | string) => `/workouts/${id}/edit`,
   EXERCISES:       '/exercises',
+  EXERCISE_DETAIL: (id: number | string) => `/exercises/${id}`,
   LOGS:            '/logs',
+  AI_COACH:        '/ai-coach',
   PROFILE:         '/profile',
+  BILLING:         '/billing',
+  BILLING_ORDER:   (id: number | string) => `/billing/orders/${id}`,
+  ADMIN_ROOT:      '/admin',
+  ADMIN_USERS:     '/admin/users',
+  ADMIN_USER_NEW:  '/admin/users/new',
+  ADMIN_USER_DETAIL_PATH: '/admin/users/:id',
+  ADMIN_USER_DETAIL: (id: number | string) => `/admin/users/${id}`,
   NOT_FOUND:       '/404',
   FORBIDDEN:       '/403',
   SERVER_ERROR:    '/500',
@@ -25,6 +34,15 @@ export const API_ENDPOINTS = {
 
   // User
   ME:              '/user',
+  ADMIN_USERS:     '/user/admin/users',
+  ADMIN_USER:      (id: number | string) => `/user/admin/users/${id}`,
+  ADMIN_USER_STATUS: (id: number | string) => `/user/admin/users/${id}/status`,
+  ADMIN_USER_ROLE:   (id: number | string) => `/user/admin/users/${id}/role`,
+  ADMIN_USERS_BULK_STATUS: '/user/admin/users/bulk-status',
+  ADMIN_USERS_BULK_ROLE: '/user/admin/users/bulk-role',
+  ADMIN_USER_RESET_PASSWORD: (id: number | string) => `/user/admin/users/${id}/reset-password`,
+  ADMIN_USER_FORCE_LOGOUT: (id: number | string) => `/user/admin/users/${id}/force-logout`,
+  ADMIN_USER_AUDIT: (id: number | string) => `/user/admin/users/${id}/audit`,
 
   // Workouts
   WORKOUTS:        '/workouts',
@@ -44,16 +62,38 @@ export const API_ENDPOINTS = {
 
   // Workout Logs
   WORKOUT_LOGS:    '/workout-logs',
+
+  // Billing
+  BILLING_PLANS:        '/billing/plans',
+  BILLING_SUBSCRIPTION: '/billing/subscription',
+  BILLING_ORDERS:       '/billing/orders',
+  BILLING_ORDER:        (id: number | string) => `/billing/orders/${id}`,
+
+  // AI Fitness Coach
+  AI_ASK:                      '/ai/ask',
+  AI_RECOMMENDATION_GENERATE:  '/ai/recommendations/generate',
+  AI_RECOMMENDATIONS:          '/ai/recommendations',
+  AI_RECOMMENDATION:           (id: number | string) => `/ai/recommendations/${id}`,
+  AI_RECOMMENDATION_APPLY:     (id: number | string) => `/ai/recommendations/${id}/apply`,
 } as const
 
 /* ─── TanStack Query Keys ────────────────────────────────── */
 export const QUERY_KEYS = {
   ME:           ['me'] as const,
+  ADMIN_USERS:  (params?: object) => params ? ['admin-users', params] : ['admin-users'],
+  ADMIN_USER:   (id: number | string) => ['admin-users', id] as const,
+  ADMIN_USER_AUDIT: (id: number | string, params?: object) =>
+    params ? (['admin-user-audit', id, params] as const) : (['admin-user-audit', id] as const),
   WORKOUTS:     (params?: object) => params ? ['workouts', params] : ['workouts'],
   WORKOUT:      (id: number | string) => ['workouts', id] as const,
   EXERCISES:    (params?: object) => params ? ['exercises', params] : ['exercises'],
   EXERCISE:     (id: number | string) => ['exercises', id] as const,
   WORKOUT_LOGS: (params?: object) => params ? ['workout-logs', params] : ['workout-logs'],
+  BILLING_PLANS:        ['billing', 'plans'] as const,
+  BILLING_SUBSCRIPTION: ['billing', 'subscription'] as const,
+  BILLING_ORDER:        (id: number | string) => ['billing', 'orders', id] as const,
+  AI_RECOMMENDATIONS:   () => ['ai', 'recommendations'] as const,
+  AI_RECOMMENDATION:    (id: number | string) => ['ai', 'recommendations', id] as const,
 } as const
 
 /* ─── Domain Enums ───────────────────────────────────────── */
@@ -82,15 +122,15 @@ export const DIFFICULTY_LABELS: Record<string, string> = {
 }
 
 export const GENDER = {
-  NAM:  'nam',
-  NU:   'nữ',
-  KHAC: 'khác',
+  male:  'nam',
+  female:   'nữ',
+  other: 'khác',
 } as const
 
 export const GENDER_LABELS: Record<string, string> = {
-  'nam':  'Nam',
-  'nữ':   'Nữ',
-  'khác': 'Khác',
+  'male':  'Nam',
+  'female':   'Nữ',
+  'other': 'Khác',
 }
 
 export const ROLE = {
